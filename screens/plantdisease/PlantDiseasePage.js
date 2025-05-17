@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import axios from 'axios'; // Added axios dependency
+import axios from 'axios';
+
+const { width, height } = Dimensions.get('window');
 
 const PlantDiseasePage = () => {
   const [imageUri, setImageUri] = useState(null);
@@ -135,24 +137,23 @@ const PlantDiseasePage = () => {
 
     setIsLoading(true);
 
-    // Create FormData for the image
     const fileName = imageUri.split('/').pop();
     const match = /\.(\w+)$/.exec(fileName);
     const fileType = match ? `image/${match[1]}` : `image`;
-    const formData = new FormData(); // Ajouté ici
+    const formData = new FormData();
     formData.append('image', {
       uri: imageUri,
       name: fileName,
       type: fileType,
     });
+    
     try {
-      const response = await axios.post('http://192.168.132.81:5000/predict', formData, {
+      const response = await axios.post('http://192.168.1.53:5000/predict', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      // Assuming the server returns an object like { disease: string, confidence: number }
       const predictionData = response.data;
       setPrediction(predictionData);
       Toast.show({
@@ -176,45 +177,108 @@ const PlantDiseasePage = () => {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['#E8F5E9', '#E1F5FE']}
+        colors={['#f5fff5', '#e8f5e9']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
       />
-      <View style={styles.appBar}>
-        <Text style={styles.appBarTitle}>Plant Disease Detection</Text>
+      
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Plant Disease Scanner</Text>
+        <Text style={styles.headerSubtitle}>Identify plant diseases with AI</Text>
       </View>
+
       <View style={styles.content}>
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={takePhoto} disabled={isLoading}>
-            <Icon name="camera-alt" size={wp(6)} color="#FFFFFF" />
-            <Text style={styles.buttonText}>Take Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={pickImage} disabled={isLoading}>
-            <Icon name="photo-library" size={wp(6)} color="#FFFFFF" />
-            <Text style={styles.buttonText}>Upload Image</Text>
-          </TouchableOpacity>
-        </View>
-        {imageUri && (
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUri }} style={styles.image} />
-            <TouchableOpacity style={styles.submitButton} onPress={submitImage} disabled={isLoading}>
+        {!imageUri ? (
+          <View style={styles.uploadSection}>
+            <View style={styles.uploadIllustration}>
+              <Icon name="photo-camera" size={wp(20)} color="#4CAF50" style={styles.uploadIcon} />
+              <Text style={styles.uploadText}>Capture or upload an image of your plant</Text>
+            </View>
+            
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity 
+                style={[styles.button, styles.cameraButton]} 
+                onPress={takePhoto} 
+                disabled={isLoading}
+              >
+                <Icon name="camera-alt" size={wp(6)} color="#FFFFFF" />
+                <Text style={styles.buttonText}>Take Photo</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.button, styles.uploadButton]} 
+                onPress={pickImage} 
+                disabled={isLoading}
+              >
+                <Icon name="photo-library" size={wp(6)} color="#FFFFFF" />
+                <Text style={styles.buttonText}>Upload Image</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.imageSection}>
+            <View style={styles.imageContainer}>
+              <Image source={{ uri: imageUri }} style={styles.image} />
+              <View style={styles.imageActions}>
+                <TouchableOpacity 
+                  style={styles.changeImageButton} 
+                  onPress={() => setImageUri(null)}
+                >
+                  <Icon name="close" size={wp(5)} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.submitButton} 
+              onPress={submitImage} 
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.submitButtonText}>Submit</Text>
+                <>
+                  <Icon name="search" size={wp(5)} color="#FFFFFF" style={{ marginRight: 10 }} />
+                  <Text style={styles.submitButtonText}>Analyze Image</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
         )}
+
         {prediction && (
           <View style={styles.resultContainer}>
-            <Text style={styles.resultTitle}>Detection Result</Text>
-            <Text style={styles.resultText}>Disease: {prediction.disease}</Text>
-            <Text style={styles.resultText}>Confidence: {(prediction.confidence * 100).toFixed(2)}%</Text>
+            <Text style={styles.resultTitle}>Analysis Results</Text>
+            
+            <View style={styles.resultCard}>
+              <View style={styles.resultRow}>
+                <Icon name="local-florist" size={wp(6)} color="#4CAF50" />
+                <View style={styles.resultTextContainer}>
+                  <Text style={styles.resultLabel}>Disease Detected</Text>
+                  <Text style={styles.resultValue}>{prediction.disease}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.divider} />
+              
+              <View style={styles.resultRow}>
+                <Icon name="assessment" size={wp(6)} color="#4CAF50" />
+                <View style={styles.resultTextContainer}>
+                  <Text style={styles.resultLabel}>Confidence Level</Text>
+                  <Text style={styles.resultValue}>{(prediction.confidence * 100).toFixed(2)}%</Text>
+                </View>
+              </View>
+            </View>
+            
+            <TouchableOpacity style={styles.tipsButton}>
+              <Text style={styles.tipsButtonText}>View Treatment Tips</Text>
+              <Icon name="chevron-right" size={wp(5)} color="#FFFFFF" />
+            </TouchableOpacity>
           </View>
         )}
       </View>
+      
       <Toast />
     </SafeAreaView>
   );
@@ -223,86 +287,127 @@ const PlantDiseasePage = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  appBar: {
-    backgroundColor: '#388E3C',
-    paddingVertical: hp(2),
-    alignItems: 'center',
-    ...Platform.select({
-      android: { elevation: 4 },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-    }),
+  header: {
+    paddingHorizontal: wp(5),
+    paddingTop: hp(2),
+    paddingBottom: hp(1),
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
-  appBarTitle: {
-    fontSize: wp(6),
+  headerTitle: {
+    fontSize: wp(7),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#2E7D32',
+    marginBottom: hp(0.5),
+  },
+  headerSubtitle: {
+    fontSize: wp(4),
+    color: '#757575',
   },
   content: {
     flex: 1,
-    padding: wp(4),
+    padding: wp(5),
+  },
+  uploadSection: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  uploadIllustration: {
+    alignItems: 'center',
+    marginBottom: hp(5),
+  },
+  uploadIcon: {
+    opacity: 0.8,
+    marginBottom: hp(2),
+  },
+  uploadText: {
+    fontSize: wp(4.5),
+    color: '#616161',
+    textAlign: 'center',
+    maxWidth: wp(80),
+    lineHeight: hp(3),
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: wp(90),
-    marginVertical: hp(2),
+    width: '100%',
+    marginTop: hp(4),
   },
   button: {
     flexDirection: 'row',
-    backgroundColor: '#4CAF50',
-    padding: wp(3),
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(4),
     borderRadius: wp(2),
     alignItems: 'center',
     justifyContent: 'center',
     width: wp(42),
-    ...Platform.select({
-      android: { elevation: 3 },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-    }),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cameraButton: {
+    backgroundColor: '#4CAF50',
+  },
+  uploadButton: {
+    backgroundColor: '#2196F3',
   },
   buttonText: {
     fontSize: wp(4),
     color: '#FFFFFF',
     marginLeft: wp(2),
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+  imageSection: {
+    flex: 1,
+    alignItems: 'center',
   },
   imageContainer: {
-    alignItems: 'center',
-    marginVertical: hp(2),
+    width: wp(90),
+    height: hp(40),
+    borderRadius: wp(4),
+    overflow: 'hidden',
+    marginBottom: hp(3),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+    backgroundColor: '#E0E0E0',
   },
   image: {
-    width: wp(80),
-    height: hp(30),
+    width: '100%',
+    height: '100%',
+  },
+  imageActions: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+  },
+  changeImageButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: wp(3),
-    marginBottom: hp(2),
+    padding: wp(2),
   },
   submitButton: {
-    backgroundColor: '#F44336',
-    paddingVertical: hp(1.5),
-    paddingHorizontal: wp(6),
+    flexDirection: 'row',
+    backgroundColor: '#FF9800',
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(8),
     borderRadius: wp(2),
     alignItems: 'center',
-    ...Platform.select({
-      android: { elevation: 3 },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-    }),
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    width: wp(80),
   },
   submitButtonText: {
     fontSize: wp(4.5),
@@ -310,31 +415,69 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   resultContainer: {
-    backgroundColor: '#424242',
-    padding: wp(4),
-    borderRadius: wp(3),
-    width: wp(90),
-    marginTop: hp(2),
-    alignItems: 'center',
-    ...Platform.select({
-      android: { elevation: 3 },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-    }),
+    width: '100%',
+    marginTop: hp(3),
   },
   resultTitle: {
     fontSize: wp(5),
     fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: hp(1),
+    color: '#2E7D32',
+    marginBottom: hp(2),
+    textAlign: 'center',
   },
-  resultText: {
+  resultCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp(3),
+    padding: wp(5),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: hp(2),
+  },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: hp(1),
+  },
+  resultTextContainer: {
+    marginLeft: wp(4),
+  },
+  resultLabel: {
+    fontSize: wp(3.8),
+    color: '#757575',
+  },
+  resultValue: {
+    fontSize: wp(4.5),
+    fontWeight: 'bold',
+    color: '#424242',
+    marginTop: hp(0.5),
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: hp(1),
+  },
+  tipsButton: {
+    flexDirection: 'row',
+    backgroundColor: '#4CAF50',
+    paddingVertical: hp(1.5),
+    paddingHorizontal: wp(5),
+    borderRadius: wp(2),
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tipsButtonText: {
     fontSize: wp(4),
     color: '#FFFFFF',
+    fontWeight: 'bold',
+    marginRight: wp(2),
   },
 });
 

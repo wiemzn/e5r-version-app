@@ -1,15 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { Switch } from '@react-native-community/slider';
 import { getDatabase, ref, onValue, set } from 'firebase/database';
 import { app } from '../../firebaseConfig';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import SensorCard from './SensorCard';
-import ActuatorCard from './ActuatorCard';
 import GoogleSheetsService from '../../googlesheetservice';
+
+const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged }) => {
+  const getIcon = (name) => {
+    switch (name?.toLowerCase()) {
+      case 'ventilation':
+        return 'air';
+      case 'led':
+        return 'lightbulb';
+      default:
+        return 'tune';
+    }
+  };
+
+  return (
+    <LinearGradient
+      colors={['#FFFFFF', '#F5F7FA']}
+      style={styles.actuatorCard}
+    >
+      <View style={styles.actuatorHeader}>
+        <Icon name={getIcon(actuatorName)} size={wp(8)} color="#388E3C" />
+        <Text style={styles.actuatorTitle}>{actuatorName.replace('_', ' ')}</Text>
+      </View>
+      <View style={styles.actuatorContent}>
+        <Text style={styles.actuatorStatus}>
+          Status: {switchValue ? 'ON' : 'OFF'} {unit}
+        </Text>
+        <TouchableOpacity
+          style={[
+            styles.toggleButton,
+            { backgroundColor: switchValue ? '#388E3C' : '#B0BEC5' },
+          ]}
+          onPress={() => onSwitchChanged(!switchValue)}
+          accessible={true}
+          accessibilityLabel={`Toggle ${actuatorName} ${switchValue ? 'off' : 'on'}`}
+        >
+          <Text style={styles.toggleButtonText}>
+            {switchValue ? 'Turn OFF' : 'Turn ON'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
+  );
+};
 
 const EnvironmentPage = () => {
   const [sensorData, setSensorData] = useState({});
@@ -162,6 +203,53 @@ const styles = StyleSheet.create({
     color: '#000000',
     textAlign: 'center',
     marginVertical: hp(2),
+  },
+  actuatorCard: {
+    borderRadius: wp(3),
+    padding: wp(4),
+    marginBottom: hp(2),
+    ...Platform.select({
+      android: {
+        elevation: 4,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+    }),
+  },
+  actuatorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hp(1),
+  },
+  actuatorTitle: {
+    fontSize: wp(4.5),
+    fontWeight: 'bold',
+    color: '#1B5E20',
+    marginLeft: wp(2),
+  },
+  actuatorContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actuatorStatus: {
+    fontSize: wp(4),
+    color: '#616161',
+  },
+  toggleButton: {
+    paddingVertical: hp(1),
+    paddingHorizontal: wp(4),
+    borderRadius: wp(2),
+  },
+  toggleButtonText: {
+    fontSize: wp(3.5),
+    fontWeight: '600',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 });
 

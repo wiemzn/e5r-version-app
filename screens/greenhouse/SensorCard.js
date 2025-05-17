@@ -21,13 +21,14 @@ const SensorCard = ({ sensorName, value, unit, isExpanded, onToggle, chart }) =>
   };
 
   return (
-    <TouchableOpacity onPress={onToggle}>
-      <LinearGradient
-        colors={['#4CAF50', '#2E7D32']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.card}
-      >
+    <LinearGradient
+      colors={['#4CAF50', '#2E7D32']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.card}
+    >
+      {/* Touchable only on the header */}
+      <TouchableOpacity onPress={onToggle} activeOpacity={0.7}>
         <View style={styles.header}>
           <Icon name={getIcon(sensorName)} size={wp(6)} color="#FFFFFF" />
           <Text style={styles.name}>{sensorName || 'Unknown'}</Text>
@@ -35,13 +36,15 @@ const SensorCard = ({ sensorName, value, unit, isExpanded, onToggle, chart }) =>
             {value != null ? value : 'N/A'} {unit || ''}
           </Text>
         </View>
-        {isExpanded && chart && (
-          <View style={styles.chartContainer}>
-            {chart}
-          </View>
-        )}
-      </LinearGradient>
-    </TouchableOpacity>
+      </TouchableOpacity>
+
+      {/* Chart or extra content should be freely touchable */}
+      {isExpanded && chart && (
+        <View style={styles.chartContainer}>
+          {chart}
+        </View>
+      )}
+    </LinearGradient>
   );
 };
 
