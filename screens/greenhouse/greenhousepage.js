@@ -16,7 +16,7 @@ const GreenhousePage = () => {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [pulseAnim] = useState(new Animated.Value(1));
   const database = getDatabase(app);
-  const databaseRef = ref(database, 'users/idriss/greenhouse');
+  const databaseRef = ref(database, 'users/11992784/greenhouse');
 
   // Animation for critical values
   useEffect(() => {
@@ -134,16 +134,32 @@ const GreenhousePage = () => {
     >
       <SafeAreaView style={styles.container}>
         <View style={styles.appBar}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
+          <LinearGradient
+            colors={['#2E7D32', '#1B5E20']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.appBarGradient}
           >
-            <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.appBarTitle}>Greenhouse Monitoring</Text>
-          <TouchableOpacity>
-            <Icon name="more-vert" size={wp(6)} color="#FFFFFF" />
-          </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+            >
+              <View style={styles.iconBackground}>
+                <Icon name="arrow-back" size={wp(5.5)} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.titleContainer}>
+              <Icon name="eco" size={wp(5)} color="#FFFFFF" style={styles.titleIcon} />
+              <Text style={styles.appBarTitle}>Greenhouse Monitor</Text>
+            </View>
+
+            <TouchableOpacity style={styles.menuButton}>
+              <View style={styles.iconBackground}>
+                <Icon name="more-vert" size={wp(5.5)} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+          </LinearGradient>
         </View>
   
         <ScrollView style={styles.content}>
@@ -192,7 +208,7 @@ const GreenhousePage = () => {
                 <View style={styles.sensorColumn}>
                   <View style={styles.gaugeContainer}>
                     <CircularProgress
-                      value={pH * 10}
+                      value={pH}
                       radius={wp(12)}
                       duration={1000}
                       progressValueColor="#FFFFFF"
@@ -233,14 +249,7 @@ const GreenhousePage = () => {
             color: '#00ACC1',
             description: 'Monitor and adjust nutrient levels'
           })}
-  
-          {renderNavigationBox({
-            title: 'Growth Analytics',
-            icon: 'show-chart',
-            onPress: () => navigation.navigate('AnalyticsPage'),
-            color: '#7B1FA2',
-            description: 'View plant growth metrics and trends'
-          })}
+
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -254,12 +263,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   appBar: {
-    backgroundColor: '#1B5E20',
-    paddingVertical: hp(2),
-    paddingHorizontal: wp(4),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    overflow: 'hidden',
     borderBottomLeftRadius: wp(5),
     borderBottomRightRadius: wp(5),
     ...Platform.select({
@@ -272,22 +276,42 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 6,
       },
-      web: {
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
-      },
     }),
   },
+  appBarGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(4),
+  },
+  iconBackground: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: wp(5),
+    padding: wp(2),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
   backButton: {
-    padding: wp(1),
+    marginRight: wp(2),
+  },
+  menuButton: {
+    marginLeft: wp(2),
+  },
+  titleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleIcon: {
+    marginRight: wp(2),
   },
   appBarTitle: {
-    fontSize: wp(5.5),
+    fontSize: wp(5),
     fontWeight: '600',
     color: '#FFFFFF',
     letterSpacing: 0.5,
-    textAlign: 'center',
-    flex: 1,
-    marginHorizontal: wp(2),
   },
   content: {
     flex: 1,

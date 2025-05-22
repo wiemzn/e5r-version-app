@@ -9,9 +9,11 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import { LineChart } from 'react-native-chart-kit';
 import SensorCard from './SensorCard';
 import GoogleSheetsService from '../../googlesheetservice';
+import { useNavigation } from '@react-navigation/native';
+import * as Animatable from 'react-native-animatable';
 
 const { width } = Dimensions.get('window');
-const CHART_WIDTH = width * 2;
+const CHART_WIDTH = width * 0.85; // 85% of screen width
 
 const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged }) => {
   const getIcon = (name) => {
@@ -28,37 +30,50 @@ const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged 
   };
 
   return (
-    <LinearGradient
-      colors={['#FFFFFF', '#F5F7FA']}
-      style={styles.actuatorCard}
-    >
-      <View style={styles.actuatorHeader}>
-        <Icon name={getIcon(actuatorName)} size={wp(8)} color="#388E3C" />
-        <Text style={styles.actuatorTitle}>{actuatorName.replace('_', ' ')}</Text>
-      </View>
-      <View style={styles.actuatorContent}>
-        <Text style={styles.actuatorStatus}>
-          Status: {switchValue ? 'ON' : 'OFF'} {unit}
-        </Text>
-        <TouchableOpacity
-          style={[
-            styles.toggleButton,
-            { backgroundColor: switchValue ? '#388E3C' : '#B0BEC5' },
-          ]}
-          onPress={() => onSwitchChanged(!switchValue)}
-          accessible={true}
-          accessibilityLabel={`Toggle ${actuatorName} ${switchValue ? 'off' : 'on'}`}
-        >
-          <Text style={styles.toggleButtonText}>
-            {switchValue ? 'Turn OFF' : 'Turn ON'}
+    <Animatable.View animation="fadeInUp" duration={800}>
+      <LinearGradient
+        colors={switchValue ? ['#43A047', '#2E7D32'] : ['#FFFFFF', '#F5F7FA']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.actuatorCard, switchValue && styles.actuatorCardActive]}
+      >
+        <View style={styles.actuatorHeader}>
+          <View style={[styles.iconContainer, switchValue && styles.iconContainerActive]}>
+            <Icon 
+              name={getIcon(actuatorName)} 
+              size={wp(6)} 
+              color={switchValue ? '#FFFFFF' : '#388E3C'} 
+            />
+          </View>
+          <Text style={[styles.actuatorTitle, switchValue && styles.actuatorTitleActive]}>
+            {actuatorName.replace('_', ' ')}
           </Text>
-        </TouchableOpacity>
-      </View>
-    </LinearGradient>
+        </View>
+        <View style={styles.actuatorContent}>
+          <View style={styles.statusContainer}>
+            <Text style={[styles.statusLabel, switchValue && styles.statusLabelActive]}>Status</Text>
+            <Text style={[styles.actuatorStatus, switchValue && styles.actuatorStatusActive]}>
+              {switchValue ? 'ON' : 'OFF'} {unit}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.toggleButton, switchValue && styles.toggleButtonActive]}
+            onPress={() => onSwitchChanged(!switchValue)}
+            accessible={true}
+            accessibilityLabel={`Toggle ${actuatorName} ${switchValue ? 'off' : 'on'}`}
+          >
+            <Text style={styles.toggleButtonText}>
+              {switchValue ? 'Turn OFF' : 'Turn ON'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </LinearGradient>
+    </Animatable.View>
   );
 };
 
 const ReservoirPage = () => {
+  const navigation = useNavigation();
   const [sensorData, setSensorData] = useState({});
   const [actuatorStates, setActuatorStates] = useState({
     water_pump: false,
@@ -67,10 +82,11 @@ const ReservoirPage = () => {
   });
   const [expandedSensor, setExpandedSensor] = useState(null);
   const [chartData, setChartData] = useState({});
+  const [rawChartData, setRawChartData] = useState({}); // Store unfiltered data
   const [isChartLoading, setIsChartLoading] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('Daily');
+  const [selectedFilter, setSelectedFilter] = useState('day'); // Changed to match GoogleSheetsService
   const database = getDatabase(app);
-  const controlsRef = ref(database, 'users/idriss/greenhouse');
+  const controlsRef = ref(database, 'users/11992784/greenhouse');
 
   useEffect(() => {
     const unsubscribe = onValue(controlsRef, (snapshot) => {
@@ -89,7 +105,10 @@ const ReservoirPage = () => {
       setIsChartLoading(true);
       try {
         const data = await GoogleSheetsService.fetchChartData();
-        setChartData(data || {});
+        setRawChartData(data || {});
+        // Apply initial filter
+        const filteredData = GoogleSheetsService.filterDataByRange(data, selectedFilter);
+        setChartData(filteredData || {});
       } catch (e) {
         console.error('Error loading chart data:', e);
       } finally {
@@ -101,9 +120,17 @@ const ReservoirPage = () => {
     return () => unsubscribe();
   }, []);
 
+  // Re-filter chart data when selectedFilter changes
+  useEffect(() => {
+    if (Object.keys(rawChartData).length > 0) {
+      const filteredData = GoogleSheetsService.filterDataByRange(rawChartData, selectedFilter);
+      setChartData(filteredData || {});
+    }
+  }, [selectedFilter, rawChartData]);
+
   const toggleActuator = async (actuatorName, value) => {
     try {
-      await set(ref(database, `users/idriss/greenhouse/${actuatorName}`), value ? 'ON' : 'OFF');
+      await set(ref(database, `users/11992784/greenhouse/${actuatorName}`), value ? 'ON' : 'OFF');
       setActuatorStates((prev) => ({
         ...prev,
         [actuatorName]: value,
@@ -150,11 +177,9 @@ const ReservoirPage = () => {
       );
     }
 
-    const chartPoints = chartData[item.sensorName]?.[selectedFilter.toLowerCase()]?.length > 0 
-      ? chartData[item.sensorName][selectedFilter.toLowerCase()] 
+    const chartPoints = chartData[item.sensorName]?.length > 0 
+      ? chartData[item.sensorName] 
       : [];
-    const chartLabels = chartPoints.map(point => point.x.toFixed(1));
-    const chartValues = chartPoints.map(point => point.y);
 
     return (
       <SensorCard
@@ -181,15 +206,14 @@ const ReservoirPage = () => {
                   <TouchableOpacity
                     style={[
                       styles.filterButton,
-                      selectedFilter === 'Daily' && styles.filterButtonActive,
+                      selectedFilter === 'day' && styles.filterButtonActive,
                     ]}
-                    onPress={() => setSelectedFilter('Daily')}
+                    onPress={() => setSelectedFilter('day')}
                   >
                     <Text
                       style={[
                         styles.filterButtonText,
-                        selectedFilter === 'Daily' &&
-                          styles.filterButtonTextActive,
+                        selectedFilter === 'day' && styles.filterButtonTextActive,
                       ]}
                     >
                       Daily
@@ -198,34 +222,41 @@ const ReservoirPage = () => {
                   <TouchableOpacity
                     style={[
                       styles.filterButton,
-                      selectedFilter === 'Weekly' && styles.filterButtonActive,
+                      selectedFilter === 'week' && styles.filterButtonActive,
                     ]}
-                    onPress={() => setSelectedFilter('Weekly')}
+                    onPress={() => setSelectedFilter('week')}
                   >
                     <Text
                       style={[
                         styles.filterButtonText,
-                        selectedFilter === 'Weekly' &&
-                          styles.filterButtonTextActive,
+                        selectedFilter === 'week' && styles.filterButtonTextActive,
                       ]}
                     >
                       Weekly
                     </Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.filterButton,
+                      selectedFilter === 'month' && styles.filterButtonActive,
+                    ]}
+                    onPress={() => setSelectedFilter('month')}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        selectedFilter === 'month' && styles.filterButtonTextActive,
+                      ]}
+                    >
+                      Monthly
+                    </Text>
+                  </TouchableOpacity>
                 </View>
     
-                {/* 💡 Transformation ici */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={true}
-                  contentContainerStyle={styles.scrollViewContent}
-                >
+                <View style={styles.chartWrapper}>
                   <LineChart
                     data={{
-                      labels: chartPoints.map((p) => {
-                        const date = new Date(p.x);
-                        return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-                      }),
+                      labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
                       datasets: [
                         {
                           data: chartPoints.map((p) => p.y),
@@ -234,13 +265,13 @@ const ReservoirPage = () => {
                     }}
                     width={CHART_WIDTH}
                     height={250}
+                    yAxisInterval={1}
                     chartConfig={{
                       backgroundGradientFrom: '#FFFFFF',
                       backgroundGradientTo: '#FFFFFF',
                       decimalPlaces: 2,
                       color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
-                      labelColor: (opacity = 1) =>
-                        `rgba(0, 0, 0, ${opacity})`,
+                      labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
                       style: {
                         borderRadius: wp(3),
                       },
@@ -249,16 +280,17 @@ const ReservoirPage = () => {
                         strokeWidth: '2',
                         stroke: '#2E7D32',
                       },
+                      hidePointsAtIndex: chartPoints.map((_, index) => index),
+                      xAxisLabel: () => '',
+                      xLabelsOffset: -10,
                     }}
                     bezier
-                    style={styles.chart}
+                    style={[styles.chart, { paddingRight: 0 }]}
                     fromZero={true}
+                    withInnerLines={false}
+                    withOuterLines={false}
                   />
-                </ScrollView>
-    
-                <Text style={styles.scrollHint}>
-                  ← Scroll to view more data →
-                </Text>
+                </View>
               </View>
             ) : (
               <Text style={styles.placeholderText}>
@@ -269,7 +301,6 @@ const ReservoirPage = () => {
         }
       />
     );
-    
   };
 
   return (
@@ -281,16 +312,30 @@ const ReservoirPage = () => {
         style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
       />
       <View style={styles.appBar}>
-        <Text style={styles.appBarTitle}>Reservoir</Text>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View style={styles.titleContainer}>
+          <Icon name="water-drop" size={wp(6)} color="#FFFFFF" style={styles.titleIcon} />
+          <Text style={styles.appBarTitle}>Reservoir</Text>
+        </View>
+        <View style={styles.placeholder} />
       </View>
       {Object.keys(sensorData).length === 0 ? (
-        <ActivityIndicator size="large" color="#388E3C" style={styles.loader} />
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#388E3C" />
+          <Text style={styles.loaderText}>Loading reservoir data...</Text>
+        </View>
       ) : (
         <FlatList
           data={data}
           renderItem={renderItem}
           keyExtractor={(item) => item.sensorName}
           contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
@@ -304,27 +349,137 @@ const styles = StyleSheet.create({
   appBar: {
     backgroundColor: '#388E3C',
     paddingVertical: hp(2),
+    paddingHorizontal: wp(4),
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     elevation: 4,
+  },
+  backButton: {
+    padding: wp(1),
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleIcon: {
+    marginRight: wp(2),
   },
   appBarTitle: {
     fontSize: wp(6),
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
+  placeholder: {
+    width: wp(8),
+  },
   content: {
     padding: wp(4),
   },
-  loader: {
+  loaderContainer: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loaderText: {
+    marginTop: hp(2),
+    color: '#388E3C',
+    fontSize: wp(4),
+    fontWeight: '500',
+  },
+  actuatorCard: {
+    borderRadius: wp(4),
+    padding: wp(4),
+    marginBottom: hp(2),
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+    ...Platform.select({
+      android: {
+        elevation: 4,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+    }),
+  },
+  actuatorCardActive: {
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  actuatorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hp(2),
+  },
+  iconContainer: {
+    backgroundColor: 'rgba(56, 142, 60, 0.1)',
+    padding: wp(3),
+    borderRadius: wp(6),
+    marginRight: wp(3),
+  },
+  iconContainerActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  actuatorTitle: {
+    fontSize: wp(4.5),
+    fontWeight: '600',
+    color: '#1B5E20',
+  },
+  actuatorTitleActive: {
+    color: '#FFFFFF',
+  },
+  actuatorContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusContainer: {
+    flex: 1,
+  },
+  statusLabel: {
+    fontSize: wp(3.5),
+    color: '#757575',
+    marginBottom: hp(0.5),
+  },
+  statusLabelActive: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  actuatorStatus: {
+    fontSize: wp(4),
+    color: '#424242',
+    fontWeight: '500',
+  },
+  actuatorStatusActive: {
+    color: '#FFFFFF',
+  },
+  toggleButton: {
+    paddingVertical: hp(1.2),
+    paddingHorizontal: wp(4),
+    borderRadius: wp(3),
+    backgroundColor: '#E0E0E0',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  toggleButtonActive: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  toggleButtonText: {
+    color: '#424242',
+    fontSize: wp(3.8),
+    fontWeight: '600',
   },
   chartContainer: {
     marginVertical: hp(2),
-    maxHeight: 330, // Adjusted for filter buttons (50px) + chart (250px) + scroll hint + margins
+    maxHeight: 350, // Adjusted for filter buttons (50px) + chart (250px) + margins
   },
-  scrollViewContent: {
-    paddingRight: wp(10),
+  chartWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   chartLoader: {
     marginVertical: hp(2),
@@ -367,53 +522,6 @@ const styles = StyleSheet.create({
   },
   filterButtonTextActive: {
     color: '#FFFFFF',
-  },
-  actuatorCard: {
-    borderRadius: wp(3),
-    padding: wp(4),
-    marginBottom: hp(2),
-    ...Platform.select({
-      android: {
-        elevation: 4,
-      },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-    }),
-  },
-  actuatorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: hp(1),
-  },
-  actuatorTitle: {
-    fontSize: wp(4.5),
-    fontWeight: 'bold',
-    color: '#1B5E20',
-    marginLeft: wp(2),
-  },
-  actuatorContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actuatorStatus: {
-    fontSize: wp(4),
-    color: '#616161',
-  },
-  toggleButton: {
-    paddingVertical: hp(1),
-    paddingHorizontal: wp(4),
-    borderRadius: wp(2),
-  },
-  toggleButtonText: {
-    fontSize: wp(3.5),
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
   },
 });
 

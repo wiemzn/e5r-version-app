@@ -24,19 +24,32 @@ const GoogleSheetsService = {
 
           if (!sensorName || !date || !time || !value) continue;
 
+          // Parse date and time into Date object
           const [day, month, year] = date.split('/');
           const dateTime = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${time}`);
-
-          const numericValue = parseFloat(value.replace(',', '.')) || 0.0;
+          
+          // Get the exact time in decimal hours for precise plotting
+          const hours = dateTime.getHours();
+          const minutes = dateTime.getMinutes();
+          const timeInHours = hours + (minutes / 60);
+          
+          // Parse sensor value to number (handle comma decimal separator)
+          const numericValue = parseFloat(value.replace(',', '.'));
 
           if (!chartData[sensorName]) {
             chartData[sensorName] = [];
           }
 
           chartData[sensorName].push({
-            x: dateTime,
+            x: timeInHours,
             y: numericValue,
+            originalTime: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
           });
+        }
+
+        // Sort data points by time for each sensor
+        for (const sensor in chartData) {
+          chartData[sensor].sort((a, b) => a.x - b.x);
         }
       } else {
         throw new Error('Failed to load chart data');
@@ -48,34 +61,16 @@ const GoogleSheetsService = {
     return chartData;
   },
 
-  // Filter function to get data from the last X period
   filterDataByRange(chartData, range = 'day') {
-    const now = new Date();
-    let cutoffDate;
-
-    switch (range) {
-      case 'week':
-        cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-        break;
-      case 'month':
-        cutoffDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-        break;
-      case 'day':
-      default:
-        cutoffDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-        break;
-    }
-
-    const filteredData = {};
-
-    for (const sensor in chartData) {
-      filteredData[sensor] = chartData[sensor].filter(
-        (point) => point.x >= cutoffDate
-      );
-    }
-
-    return filteredData;
+    return chartData;
   },
+
+  formatXAxisLabel(timeInHours) {
+    // Convert decimal hours back to HH:MM format
+    const hours = Math.floor(timeInHours);
+    const minutes = Math.round((timeInHours - hours) * 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
 };
 
 export default GoogleSheetsService;
