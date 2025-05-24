@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import CircularProgress from 'react-native-circular-progress-indicator';
 import { ScrollView } from 'react-native';
-
+import Controls from './controls';
 const GreenhousePage = () => {
   const navigation = useNavigation();
   const [sensorData, setSensorData] = useState({});
@@ -248,6 +248,13 @@ const GreenhousePage = () => {
             onPress: () => navigation.navigate('ReservoirPage'),
             color: '#00ACC1',
             description: 'Monitor and adjust nutrient levels'
+          })}
+          {renderNavigationBox({
+            title: 'Control Panel',
+            icon: 'settings',
+            onPress: () => navigation.replace('Controls'),
+            color: '#00ACC1',
+            description: 'Monitor and control greenhouse systems'
           })}
 
         </ScrollView>

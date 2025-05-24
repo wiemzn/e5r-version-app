@@ -13,78 +13,16 @@ import { useNavigation } from '@react-navigation/native';
 import * as Animatable from 'react-native-animatable';
 
 const { width } = Dimensions.get('window');
-const CHART_WIDTH = width * 0.85; // 85% of screen width
-
-const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged }) => {
-  const getIcon = (name) => {
-    switch (name?.toLowerCase()) {
-      case 'water_pump':
-        return 'water';
-      case 'ventilation':
-        return 'air';
-      case 'led':
-        return 'lightbulb';
-      default:
-        return 'tune';
-    }
-  };
-
-  return (
-    <Animatable.View animation="fadeInUp" duration={800}>
-      <LinearGradient
-        colors={switchValue ? ['#43A047', '#2E7D32'] : ['#FFFFFF', '#F5F7FA']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.actuatorCard, switchValue && styles.actuatorCardActive]}
-      >
-        <View style={styles.actuatorHeader}>
-          <View style={[styles.iconContainer, switchValue && styles.iconContainerActive]}>
-            <Icon 
-              name={getIcon(actuatorName)} 
-              size={wp(6)} 
-              color={switchValue ? '#FFFFFF' : '#388E3C'} 
-            />
-          </View>
-          <Text style={[styles.actuatorTitle, switchValue && styles.actuatorTitleActive]}>
-            {actuatorName.replace('_', ' ')}
-          </Text>
-        </View>
-        <View style={styles.actuatorContent}>
-          <View style={styles.statusContainer}>
-            <Text style={[styles.statusLabel, switchValue && styles.statusLabelActive]}>Status</Text>
-            <Text style={[styles.actuatorStatus, switchValue && styles.actuatorStatusActive]}>
-              {switchValue ? 'ON' : 'OFF'} {unit}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.toggleButton, switchValue && styles.toggleButtonActive]}
-            onPress={() => onSwitchChanged(!switchValue)}
-            accessible={true}
-            accessibilityLabel={`Toggle ${actuatorName} ${switchValue ? 'off' : 'on'}`}
-          >
-            <Text style={styles.toggleButtonText}>
-              {switchValue ? 'Turn OFF' : 'Turn ON'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-    </Animatable.View>
-  );
-};
+const CHART_WIDTH = width * 0.85;
 
 const ReservoirPage = () => {
   const navigation = useNavigation();
   const [sensorData, setSensorData] = useState({});
-  const [actuatorStates, setActuatorStates] = useState({
-    water_pump: false,
-    ventilation: false,
-    led: false,
-  });
   const [expandedSensor, setExpandedSensor] = useState(null);
   const [chartData, setChartData] = useState({});
-  const [rawChartData, setRawChartData] = useState({}); // Store unfiltered data
+  const [rawChartData, setRawChartData] = useState({});
   const [isChartLoading, setIsChartLoading] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('day'); // Changed to match GoogleSheetsService
+  const [selectedFilter, setSelectedFilter] = useState('day');
   const database = getDatabase(app);
   const controlsRef = ref(database, 'users/11992784/greenhouse');
 
@@ -92,11 +30,6 @@ const ReservoirPage = () => {
     const unsubscribe = onValue(controlsRef, (snapshot) => {
       const data = snapshot.val() || {};
       setSensorData(data);
-      setActuatorStates({
-        water_pump: data['water_pump'] === 'ON',
-        ventilation: data['ventilation'] === 'ON',
-        led: data['led'] === 'ON',
-      });
     }, (error) => {
       console.error('Firebase error:', error);
     });
@@ -106,7 +39,6 @@ const ReservoirPage = () => {
       try {
         const data = await GoogleSheetsService.fetchChartData();
         setRawChartData(data || {});
-        // Apply initial filter
         const filteredData = GoogleSheetsService.filterDataByRange(data, selectedFilter);
         setChartData(filteredData || {});
       } catch (e) {
@@ -120,7 +52,6 @@ const ReservoirPage = () => {
     return () => unsubscribe();
   }, []);
 
-  // Re-filter chart data when selectedFilter changes
   useEffect(() => {
     if (Object.keys(rawChartData).length > 0) {
       const filteredData = GoogleSheetsService.filterDataByRange(rawChartData, selectedFilter);
@@ -128,24 +59,8 @@ const ReservoirPage = () => {
     }
   }, [selectedFilter, rawChartData]);
 
-  const toggleActuator = async (actuatorName, value) => {
-    try {
-      await set(ref(database, `users/11992784/greenhouse/${actuatorName}`), value ? 'ON' : 'OFF');
-      setActuatorStates((prev) => ({
-        ...prev,
-        [actuatorName]: value,
-      }));
-    } catch (e) {
-      console.error(`Error toggling ${actuatorName}:`, e);
-    }
-  };
-
   const getUnit = (sensorName) => {
     switch (sensorName?.toLowerCase()) {
-      case 'water_pump':
-      case 'ventilation':
-      case 'led':
-        return '';
       case 'ph':
         return 'pH';
       case 'water_level':
@@ -156,27 +71,14 @@ const ReservoirPage = () => {
   };
 
   const data = Object.entries(sensorData)
-    .filter(([key]) => ['water_pump', 'ph', 'water_level'].includes(key))
+    .filter(([key]) => ['ph', 'water_level'].includes(key))
     .map(([key, value]) => ({
       sensorName: key,
       value: value?.toString() || 'N/A',
-      unit: getUnit(key),
-      isActuator: ['water_pump'].includes(key),
+      unit: getUnit(key)
     }));
 
   const renderItem = ({ item }) => {
-    if (item.isActuator) {
-      return (
-        <ActuatorCard
-          actuatorName={item.sensorName}
-          value={item.value}
-          unit={item.unit}
-          switchValue={actuatorStates[item.sensorName]}
-          onSwitchChanged={(value) => toggleActuator(item.sensorName, value)}
-        />
-      );
-    }
-
     const chartPoints = chartData[item.sensorName]?.length > 0 
       ? chartData[item.sensorName] 
       : [];
@@ -187,81 +89,46 @@ const ReservoirPage = () => {
         value={item.value}
         unit={item.unit}
         isExpanded={expandedSensor === item.sensorName}
-        onToggle={() =>
-          setExpandedSensor(
-            expandedSensor === item.sensorName ? null : item.sensorName
-          )
-        }
+        onToggle={() => setExpandedSensor(expandedSensor === item.sensorName ? null : item.sensorName)}
         chart={
           expandedSensor === item.sensorName ? (
             isChartLoading ? (
-              <ActivityIndicator
-                size="small"
-                color="#388E3C"
-                style={styles.chartLoader}
-              />
+              <ActivityIndicator size="small" color="#388E3C" style={styles.chartLoader} />
             ) : chartPoints.length > 0 ? (
               <View style={styles.chartContainer}>
                 <View style={styles.filterButtons}>
                   <TouchableOpacity
-                    style={[
-                      styles.filterButton,
-                      selectedFilter === 'day' && styles.filterButtonActive,
-                    ]}
+                    style={[styles.filterButton, selectedFilter === 'day' && styles.filterButtonActive]}
                     onPress={() => setSelectedFilter('day')}
                   >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        selectedFilter === 'day' && styles.filterButtonTextActive,
-                      ]}
-                    >
+                    <Text style={[styles.filterButtonText, selectedFilter === 'day' && styles.filterButtonTextActive]}>
                       Daily
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[
-                      styles.filterButton,
-                      selectedFilter === 'week' && styles.filterButtonActive,
-                    ]}
+                    style={[styles.filterButton, selectedFilter === 'week' && styles.filterButtonActive]}
                     onPress={() => setSelectedFilter('week')}
                   >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        selectedFilter === 'week' && styles.filterButtonTextActive,
-                      ]}
-                    >
+                    <Text style={[styles.filterButtonText, selectedFilter === 'week' && styles.filterButtonTextActive]}>
                       Weekly
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[
-                      styles.filterButton,
-                      selectedFilter === 'month' && styles.filterButtonActive,
-                    ]}
+                    style={[styles.filterButton, selectedFilter === 'month' && styles.filterButtonActive]}
                     onPress={() => setSelectedFilter('month')}
                   >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        selectedFilter === 'month' && styles.filterButtonTextActive,
-                      ]}
-                    >
+                    <Text style={[styles.filterButtonText, selectedFilter === 'month' && styles.filterButtonTextActive]}>
                       Monthly
                     </Text>
                   </TouchableOpacity>
                 </View>
-    
                 <View style={styles.chartWrapper}>
                   <LineChart
                     data={{
                       labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
-                      datasets: [
-                        {
-                          data: chartPoints.map((p) => p.y),
-                        },
-                      ],
+                      datasets: [{
+                        data: chartPoints.map(p => p.y)
+                      }]
                     }}
                     width={CHART_WIDTH}
                     height={250}
@@ -278,14 +145,11 @@ const ReservoirPage = () => {
                       propsForDots: {
                         r: '4',
                         strokeWidth: '2',
-                        stroke: '#2E7D32',
-                      },
-                      hidePointsAtIndex: chartPoints.map((_, index) => index),
-                      xAxisLabel: () => '',
-                      xLabelsOffset: -10,
+                        stroke: '#2E7D32'
+                      }
                     }}
                     bezier
-                    style={[styles.chart, { paddingRight: 0 }]}
+                    style={styles.chart}
                     fromZero={true}
                     withInnerLines={false}
                     withOuterLines={false}
@@ -293,9 +157,7 @@ const ReservoirPage = () => {
                 </View>
               </View>
             ) : (
-              <Text style={styles.placeholderText}>
-                No chart data available for {item.sensorName}
-              </Text>
+              <Text style={styles.placeholderText}>No chart data available for {item.sensorName}</Text>
             )
           ) : null
         }

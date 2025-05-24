@@ -5,6 +5,7 @@ import HomeScreen from './screens/home/home_screen';
 import GreenhousePage from './screens/greenhouse/greenhousepage';
 import EnvironmentPage from './screens/greenhouse/environment_page';
 import ReservoirPage from './screens/greenhouse/reservoir_page';
+import ControlsScreen from './screens/greenhouse/controls';
 import GreenEnergyPage from './screens/greenenergy/greenenergy';
 import PlantDiseasePage from './screens/plantdisease/PlantDiseasePage';
 import Weather from './screens/weather/weather';
@@ -49,6 +50,7 @@ export default function App() {
               <Stack.Screen name="GreenhousePage" component={GreenhousePage} options={{ headerShown: false }} />
               <Stack.Screen name="EnvironmentPage" component={EnvironmentPage}  options={{ headerShown: false }} />
               <Stack.Screen name="ReservoirPage" component={ReservoirPage} options={{ headerShown: false }} />
+              <Stack.Screen name="Controls" component={ControlsScreen} options={{ headerShown: false }} />
               <Stack.Screen name="GreenEnergyPage" component={GreenEnergyPage} options={{ headerShown: false }} />
               <Stack.Screen name="PlantDiseasePage" component={PlantDiseasePage} options={{ headerShown: false }} />
               <Stack.Screen name="Weather" component={Weather} options={{ headerShown: false }} />
