@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getDatabase, ref, onValue, set } from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Ajout de l'importation manquante
 import { app } from '../../firebaseConfig';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
@@ -29,29 +37,33 @@ const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged,
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[
-          styles.actuatorCard, 
+          styles.actuatorCard,
           switchValue && styles.actuatorCardActive,
-          isLocked && styles.actuatorCardLocked
+          isLocked && styles.actuatorCardLocked,
         ]}
       >
         <View style={styles.actuatorHeader}>
-          <View style={[
-            styles.iconContainer, 
-            switchValue && styles.iconContainerActive,
-            isLocked && styles.iconContainerLocked
-          ]}>
-            <Icon 
-              name={getIcon(actuatorName)} 
-              size={wp(6)} 
-              color={isLocked ? '#9E9E9E' : (switchValue ? '#FFFFFF' : '#388E3C')} 
+          <View
+            style={[
+              styles.iconContainer,
+              switchValue && styles.iconContainerActive,
+              isLocked && styles.iconContainerLocked,
+            ]}
+          >
+            <Icon
+              name={getIcon(actuatorName)}
+              size={wp(6)}
+              color={isLocked ? '#9E9E9E' : switchValue ? '#FFFFFF' : '#388E3C'}
             />
           </View>
           <View style={styles.titleContainer}>
-            <Text style={[
-              styles.actuatorTitle, 
-              switchValue && styles.actuatorTitleActive,
-              isLocked && styles.actuatorTitleLocked
-            ]}>
+            <Text
+              style={[
+                styles.actuatorTitle,
+                switchValue && styles.actuatorTitleActive,
+                isLocked && styles.actuatorTitleLocked,
+              ]}
+            >
               {actuatorName.replace('_', ' ')}
             </Text>
             {isLocked && (
@@ -64,34 +76,42 @@ const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged,
         </View>
         <View style={styles.actuatorContent}>
           <View style={styles.statusContainer}>
-            <Text style={[
-              styles.statusLabel, 
-              switchValue && styles.statusLabelActive,
-              isLocked && styles.statusLabelLocked
-            ]}>Status</Text>
-            <Text style={[
-              styles.actuatorStatus, 
-              switchValue && styles.actuatorStatusActive,
-              isLocked && styles.actuatorStatusLocked
-            ]}>
+            <Text
+              style={[
+                styles.statusLabel,
+                switchValue && styles.statusLabelActive,
+                isLocked && styles.statusLabelLocked,
+              ]}
+            >
+              Status
+            </Text>
+            <Text
+              style={[
+                styles.actuatorStatus,
+                switchValue && styles.actuatorStatusActive,
+                isLocked && styles.actuatorStatusLocked,
+              ]}
+            >
               {switchValue ? 'ON' : 'OFF'} {unit}
             </Text>
           </View>
           <TouchableOpacity
             style={[
-              styles.toggleButton, 
+              styles.toggleButton,
               switchValue && styles.toggleButtonActive,
-              isLocked && styles.toggleButtonLocked
+              isLocked && styles.toggleButtonLocked,
             ]}
             onPress={() => !isLocked && onSwitchChanged(!switchValue)}
             disabled={isLocked}
             accessible={true}
             accessibilityLabel={`Toggle ${actuatorName} ${switchValue ? 'off' : 'on'}`}
           >
-            <Text style={[
-              styles.toggleButtonText,
-              isLocked && styles.toggleButtonTextLocked
-            ]}>
+            <Text
+              style={[
+                styles.toggleButtonText,
+                isLocked && styles.toggleButtonTextLocked,
+              ]}
+            >
               {switchValue ? 'Turn OFF' : 'Turn ON'}
             </Text>
           </TouchableOpacity>
@@ -103,10 +123,7 @@ const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged,
 
 const ControlModeSwitch = ({ isAutomatic, onToggle }) => {
   return (
-    <TouchableOpacity
-      style={styles.controlModeContainer}
-      onPress={onToggle}
-    >
+    <TouchableOpacity style={styles.controlModeContainer} onPress={onToggle}>
       <LinearGradient
         colors={isAutomatic ? ['#43A047', '#2E7D32'] : ['#FFFFFF', '#F5F7FA']}
         start={{ x: 0, y: 0 }}
@@ -114,26 +131,32 @@ const ControlModeSwitch = ({ isAutomatic, onToggle }) => {
         style={styles.controlModeCard}
       >
         <View style={styles.controlModeContent}>
-          <Icon 
-            name={isAutomatic ? "autorenew" : "pan-tool"} 
-            size={wp(6)} 
-            color={isAutomatic ? '#FFFFFF' : '#388E3C'} 
+          <Icon
+            name={isAutomatic ? 'autorenew' : 'pan-tool'}
+            size={wp(6)}
+            color={isAutomatic ? '#FFFFFF' : '#388E3C'}
           />
-          <Text style={[
-            styles.controlModeText,
-            isAutomatic && styles.controlModeTextActive
-          ]}>
+          <Text
+            style={[
+              styles.controlModeText,
+              isAutomatic && styles.controlModeTextActive,
+            ]}
+          >
             {isAutomatic ? 'Automatic Control' : 'Manual Control'}
           </Text>
         </View>
-        <View style={[
-          styles.controlModeIndicator,
-          isAutomatic && styles.controlModeIndicatorActive
-        ]}>
-          <Text style={[
-            styles.controlModeStatus,
-            isAutomatic && styles.controlModeStatusActive
-          ]}>
+        <View
+          style={[
+            styles.controlModeIndicator,
+            isAutomatic && styles.controlModeIndicatorActive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.controlModeStatus,
+              isAutomatic && styles.controlModeStatusActive,
+            ]}
+          >
             {isAutomatic ? 'ON' : 'OFF'}
           </Text>
         </View>
@@ -147,36 +170,57 @@ const ControlsScreen = () => {
   const [actuatorStates, setActuatorStates] = useState({
     water_pump: false,
     ventilation: false,
-    led: false
+    led: false,
   });
   const [isAutomatic, setIsAutomatic] = useState(false);
-  
+  const [uid, setUid] = useState(null);
+
   const database = getDatabase(app);
-  const controlsRef = ref(database, 'users/11992784/greenhouse');
 
+  // Récupérer UID utilisateur
   useEffect(() => {
-    const unsubscribe = onValue(controlsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setActuatorStates({
-        water_pump: data.water_pump === 'ON',
-        ventilation: data.ventilation === 'ON',
-        led: data.led === 'ON'
-      });
-      setIsAutomatic(data.control_mode === 'AUTO');
-    }, (error) => {
-      console.error('Firebase error:', error);
-    });
-
-    return () => unsubscribe();
+    const auth = getAuth(app);
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      setUid(currentUser.uid);
+    }
   }, []);
 
+  // Fetch données utilisateur
+  useEffect(() => {
+    if (!uid) return;
+
+    const controlsRef = ref(database, `users/${uid}/greenhouse`);
+    const unsubscribe = onValue(
+      controlsRef,
+      (snapshot) => {
+        const data = snapshot.val() || {};
+        console.log('Firebase data:', data); // Debug pour vérifier les données
+        setActuatorStates({
+          water_pump: data.water_pump === 'ON',
+          ventilation: data.ventilation === 'ON',
+          led: data.led === 'ON',
+        });
+        setIsAutomatic(data.control_mode === 'AUTO');
+      },
+      (error) => {
+        console.error('Firebase error:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [uid]);
+
   const toggleActuator = async (actuatorName, value) => {
-    if (isAutomatic) return; // Don't allow changes in automatic mode
+    if (isAutomatic || !uid) return;
     try {
-      await set(ref(database, `users/11992784/greenhouse/${actuatorName}`), value ? 'ON' : 'OFF');
-      setActuatorStates(prev => ({
+      await set(
+        ref(database, `users/${uid}/greenhouse/${actuatorName}`),
+        value ? 'ON' : 'OFF'
+      );
+      setActuatorStates((prev) => ({
         ...prev,
-        [actuatorName]: value
+        [actuatorName]: value,
       }));
     } catch (error) {
       console.error(`Error toggling ${actuatorName}:`, error);
@@ -184,9 +228,13 @@ const ControlsScreen = () => {
   };
 
   const toggleControlMode = async () => {
+    if (!uid) return;
     try {
       const newMode = !isAutomatic;
-      await set(ref(database, 'users/11992784/greenhouse/control_mode'), newMode ? 'AUTO' : 'MANUAL');
+      await set(
+        ref(database, `users/${uid}/greenhouse/control_mode`),
+        newMode ? 'AUTO' : 'MANUAL'
+      );
       setIsAutomatic(newMode);
     } catch (error) {
       console.error('Error toggling control mode:', error);
@@ -194,13 +242,10 @@ const ControlsScreen = () => {
   };
 
   return (
-    <LinearGradient
-      colors={['#f5f7fa', '#e4f5e8']}
-      style={styles.background}
-    >
+    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
@@ -208,40 +253,37 @@ const ControlsScreen = () => {
           </TouchableOpacity>
           <Text style={styles.title}>Control Panel</Text>
         </View>
-        
+
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.sectionTitle}>Control Mode</Text>
-          <ControlModeSwitch 
+          <ControlModeSwitch
             isAutomatic={isAutomatic}
             onToggle={toggleControlMode}
           />
 
-          <Text style={[styles.sectionTitle, styles.actuatorsSectionTitle]}>System Controls</Text>
-          
-          {/* Water Pump Control */}
+          <Text style={[styles.sectionTitle, styles.actuatorsSectionTitle]}>
+            System Controls
+          </Text>
+
           <ActuatorCard
-            actuatorName="Water Pump"
-            value={actuatorStates.water_pump ? "ON" : "OFF"}
+            actuatorName="water_pump"
+            value={actuatorStates.water_pump ? 'ON' : 'OFF'}
             unit=""
             switchValue={actuatorStates.water_pump}
             onSwitchChanged={(value) => toggleActuator('water_pump', value)}
             isLocked={isAutomatic}
           />
-
-          {/* Ventilation Control */}
           <ActuatorCard
-            actuatorName="Ventilation"
-            value={actuatorStates.ventilation ? "ON" : "OFF"}
+            actuatorName="ventilation"
+            value={actuatorStates.ventilation ? 'ON' : 'OFF'}
             unit=""
             switchValue={actuatorStates.ventilation}
             onSwitchChanged={(value) => toggleActuator('ventilation', value)}
             isLocked={isAutomatic}
           />
-
-          {/* LED Control */}
           <ActuatorCard
-            actuatorName="LED"
-            value={actuatorStates.led ? "ON" : "OFF"}
+            actuatorName="led"
+            value={actuatorStates.led ? 'ON' : 'OFF'}
             unit=""
             switchValue={actuatorStates.led}
             onSwitchChanged={(value) => toggleActuator('led', value)}

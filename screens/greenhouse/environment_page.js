@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, Platform, TouchableOpacity, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  Platform,
+  TouchableOpacity,
+  Dimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getDatabase, ref, onValue, set } from 'firebase/database';
+import { getDatabase, ref, onValue } from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Ajout de l'importation
 import { app } from '../../firebaseConfig';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { LineChart } from 'react-native-chart-kit';
@@ -22,16 +32,40 @@ const EnvironmentPage = () => {
   const [rawChartData, setRawChartData] = useState({});
   const [isChartLoading, setIsChartLoading] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('day');
+  const [uid, setUid] = useState(null);
+
   const database = getDatabase(app);
-  const controlsRef = ref(database, 'users/11992784/greenhouse');
+
+  // Récupérer l'UID de l'utilisateur connecté
+  useEffect(() => {
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUid(user.uid);
+      } else {
+        console.warn('Utilisateur non connecté.');
+        setUid(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
-    const unsubscribe = onValue(controlsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setSensorData(data);
-    }, (error) => {
-      console.error('Firebase error:', error);
-    });
+    if (!uid) return;
+
+    const controlsRef = ref(database, `users/${uid}/greenhouse`);
+    const unsubscribe = onValue(
+      controlsRef,
+      (snapshot) => {
+        const data = snapshot.val() || {};
+        console.log('EnvironmentPage Firebase data:', data); // Debug
+        setSensorData(data);
+      },
+      (error) => {
+        console.error('Firebase error:', error);
+      }
+    );
 
     const loadChartData = async () => {
       setIsChartLoading(true);
@@ -46,10 +80,10 @@ const EnvironmentPage = () => {
         setIsChartLoading(false);
       }
     };
-    loadChartData();
 
+    loadChartData();
     return () => unsubscribe();
-  }, []);
+  }, [uid]);
 
   useEffect(() => {
     if (Object.keys(rawChartData).length > 0) {
@@ -73,13 +107,13 @@ const EnvironmentPage = () => {
     .filter(([key]) => ['humidity', 'temperature'].includes(key))
     .map(([key, value]) => ({
       sensorName: key,
-      value: value?.toString() || 'N/A',
-      unit: getUnit(key)
+      value: value ? value.toString() : 'N/A',
+      unit: getUnit(key),
     }));
 
   const renderItem = ({ item }) => {
-    const chartPoints = chartData[item.sensorName]?.length > 0 
-      ? chartData[item.sensorName] 
+    const chartPoints = Array.isArray(chartData[item.sensorName])
+      ? chartData[item.sensorName]
       : [];
 
     return (
@@ -88,7 +122,9 @@ const EnvironmentPage = () => {
         value={item.value}
         unit={item.unit}
         isExpanded={expandedSensor === item.sensorName}
-        onToggle={() => setExpandedSensor(expandedSensor === item.sensorName ? null : item.sensorName)}
+        onToggle={() =>
+          setExpandedSensor(expandedSensor === item.sensorName ? null : item.sensorName)
+        }
         chart={
           expandedSensor === item.sensorName ? (
             isChartLoading ? (
@@ -96,38 +132,31 @@ const EnvironmentPage = () => {
             ) : chartPoints.length > 0 ? (
               <View style={styles.chartContainer}>
                 <View style={styles.filterButtons}>
-                  <TouchableOpacity
-                    style={[styles.filterButton, selectedFilter === 'day' && styles.filterButtonActive]}
-                    onPress={() => setSelectedFilter('day')}
-                  >
-                    <Text style={[styles.filterButtonText, selectedFilter === 'day' && styles.filterButtonTextActive]}>
-                      Daily
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.filterButton, selectedFilter === 'week' && styles.filterButtonActive]}
-                    onPress={() => setSelectedFilter('week')}
-                  >
-                    <Text style={[styles.filterButtonText, selectedFilter === 'week' && styles.filterButtonTextActive]}>
-                      Weekly
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.filterButton, selectedFilter === 'month' && styles.filterButtonActive]}
-                    onPress={() => setSelectedFilter('month')}
-                  >
-                    <Text style={[styles.filterButtonText, selectedFilter === 'month' && styles.filterButtonTextActive]}>
-                      Monthly
-                    </Text>
-                  </TouchableOpacity>
+                  {['day', 'week', 'month'].map((filter) => (
+                    <TouchableOpacity
+                      key={filter}
+                      style={[
+                        styles.filterButton,
+                        selectedFilter === filter && styles.filterButtonActive,
+                      ]}
+                      onPress={() => setSelectedFilter(filter)}
+                    >
+                      <Text
+                        style={[
+                          styles.filterButtonText,
+                          selectedFilter === filter && styles.filterButtonTextActive,
+                        ]}
+                      >
+                        {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
                 <View style={styles.chartWrapper}>
                   <LineChart
                     data={{
                       labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
-                      datasets: [{
-                        data: chartPoints.map(p => p.y)
-                      }]
+                      datasets: [{ data: chartPoints.map((p) => p.y) }],
                     }}
                     width={CHART_WIDTH}
                     height={220}
@@ -137,14 +166,11 @@ const EnvironmentPage = () => {
                       decimalPlaces: 2,
                       color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
                       labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                      style: {
-                        borderRadius: wp(3),
-                      },
                       propsForDots: {
                         r: '4',
                         strokeWidth: '2',
-                        stroke: '#2E7D32'
-                      }
+                        stroke: '#2E7D32',
+                      },
                     }}
                     bezier
                     style={styles.chart}
@@ -155,7 +181,9 @@ const EnvironmentPage = () => {
                 </View>
               </View>
             ) : (
-              <Text style={styles.placeholderText}>No chart data available for {item.sensorName}</Text>
+              <Text style={styles.placeholderText}>
+                No chart data available for {item.sensorName}
+              </Text>
             )
           ) : null
         }
@@ -172,10 +200,7 @@ const EnvironmentPage = () => {
         style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
       />
       <View style={styles.appBar}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
@@ -199,9 +224,7 @@ const EnvironmentPage = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   appBar: {
     backgroundColor: '#388E3C',
     paddingVertical: hp(2),
@@ -211,48 +234,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     elevation: 4,
   },
-  backButton: {
-    padding: wp(1),
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleIcon: {
-    marginRight: wp(2),
-  },
-  appBarTitle: {
-    fontSize: wp(6),
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  placeholder: {
-    width: wp(8),
-  },
-  content: {
-    padding: wp(4),
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  chartContainer: {
-    marginVertical: hp(2),
-    maxHeight: 300,
-  },
-  chartLoader: {
-    marginVertical: hp(2),
-  },
+  backButton: { padding: wp(1) },
+  titleContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  titleIcon: { marginRight: wp(2) },
+  appBarTitle: { fontSize: wp(6), fontWeight: 'bold', color: '#FFFFFF' },
+  placeholder: { width: wp(8) },
+  content: { padding: wp(4) },
+  loader: { flex: 1, justifyContent: 'center' },
+  chartContainer: { marginVertical: hp(2), maxHeight: 300 },
+  chartLoader: { marginVertical: hp(2) },
   placeholderText: {
     fontSize: wp(4),
     color: '#000000',
     textAlign: 'center',
     marginVertical: hp(2),
   },
-  chart: {
-    borderRadius: wp(3),
-  },
+  chart: { borderRadius: wp(3) },
   filterButtons: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -265,69 +262,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E0E0',
     marginHorizontal: wp(1),
   },
-  filterButtonActive: {
-    backgroundColor: '#388E3C',
-  },
-  filterButtonText: {
-    fontSize: wp(3.5),
-    color: '#000000',
-    fontWeight: '600',
-  },
-  filterButtonTextActive: {
-    color: '#FFFFFF',
-  },
-  actuatorCard: {
-    borderRadius: wp(3),
-    padding: wp(4),
-    marginBottom: hp(2),
-    ...Platform.select({
-      android: {
-        elevation: 4,
-      },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-    }),
-  },
-  actuatorHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: hp(1),
-  },
-  actuatorTitle: {
-    fontSize: wp(4.5),
-    fontWeight: 'bold',
-    color: '#1B5E20',
-    marginLeft: wp(2),
-  },
-  actuatorContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actuatorStatus: {
-    fontSize: wp(4),
-    color: '#616161',
-  },
-  toggleButton: {
-    paddingVertical: hp(1),
-    paddingHorizontal: wp(4),
-    borderRadius: wp(2),
-  },
-  toggleButtonText: {
-    fontSize: wp(3.5),
-    fontWeight: '600',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  chartWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-  },
+  filterButtonActive: { backgroundColor: '#388E3C' },
+  filterButtonText: { fontSize: wp(3.5), color: '#000000', fontWeight: '600' },
+  filterButtonTextActive: { color: '#FFFFFF' },
 });
 
 export default EnvironmentPage;

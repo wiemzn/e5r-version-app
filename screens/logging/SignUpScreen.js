@@ -8,11 +8,16 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SignUpScreen = () => {
   const [name, setName] = useState('');
@@ -66,17 +71,15 @@ const SignUpScreen = () => {
 
     setIsLoading(true);
     try {
-      // Check if CIN exists in both requests and clients collections
       const cinDocRequest = await getDoc(doc(db, 'requests', cin.trim()));
       const cinDocClient = await getDoc(doc(db, 'clients', cin.trim()));
-      
+
       if (cinDocRequest.exists() || cinDocClient.exists()) {
         setIsLoading(false);
         Alert.alert('Error', 'CIN already registered');
         return;
       }
 
-      // Create user account
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email.trim(),
@@ -84,7 +87,6 @@ const SignUpScreen = () => {
       );
 
       try {
-        // Store user data in requests collection
         await setDoc(doc(db, 'requests', cin.trim()), {
           cin: cin.trim(),
           name: name.trim(),
@@ -96,16 +98,12 @@ const SignUpScreen = () => {
           authUid: userCredential.user.uid,
         });
 
-        // Sign out and redirect immediately
         await signOut(auth);
         setIsLoading(false);
         navigation.replace('SignInScreen');
-        
-        // Show success message after navigation
-        
 
+        Alert.alert('Success', 'Registration successful! Please wait for approval.');
       } catch (firestoreError) {
-        // If Firestore save fails, delete the auth account
         try {
           await userCredential.user.delete();
         } catch (deleteError) {
@@ -147,116 +145,185 @@ const SignUpScreen = () => {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.appBar}>
-        <Text style={styles.appBarTitle}>Create Account</Text>
-      </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <TextInput
-          style={styles.input}
-          placeholder="Full Name"
-          value={name}
-          onChangeText={setName}
-          ref={nameInputRef}
-          returnKeyType="next"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="CIN"
-          value={cin}
-          onChangeText={setCin}
-          keyboardType="numeric"
-          ref={cinInputRef}
-          returnKeyType="next"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          ref={emailInputRef}
-          returnKeyType="next"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Phone Number"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          ref={phoneInputRef}
-          returnKeyType="next"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          ref={passwordInputRef}
-          returnKeyType="done"
-        />
+    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.appBar}>
+          <View style={styles.appBarGradient}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <View style={styles.iconBackground}>
+                <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
+              </View>
+            </TouchableOpacity>
+            <View style={styles.titleContainer}>
+              <Text style={styles.appBarTitle}>Create Account</Text>
+            </View>
+            <View style={styles.emptySpace} />
+          </View>
+        </LinearGradient>
 
-        {isLoading ? (
-          <ActivityIndicator size="large" color="#007AFF" />
-        ) : (
-          <TouchableOpacity style={styles.button} onPress={signUp}>
-            <Text style={styles.buttonText}>Sign Up</Text>
+        <ScrollView contentContainerStyle={styles.content}>
+          <TextInput
+            style={styles.input}
+            placeholder="Full Name"
+            value={name}
+            onChangeText={setName}
+            ref={nameInputRef}
+            returnKeyType="next"
+            onSubmitEditing={() => cinInputRef.current.focus()}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="CIN"
+            value={cin}
+            onChangeText={setCin}
+            keyboardType="numeric"
+            ref={cinInputRef}
+            returnKeyType="next"
+            onSubmitEditing={() => emailInputRef.current.focus()}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            ref={emailInputRef}
+            returnKeyType="next"
+            onSubmitEditing={() => phoneInputRef.current.focus()}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Phone Number"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            ref={phoneInputRef}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordInputRef.current.focus()}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            ref={passwordInputRef}
+            returnKeyType="done"
+            onSubmitEditing={signUp}
+          />
+
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#4CAF50" />
+          ) : (
+            <TouchableOpacity onPress={signUp}>
+              <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.button}>
+                <Text style={styles.buttonText}>Sign Up</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity onPress={() => navigation.navigate('SignInScreen')}>
+            <Text style={styles.link}>Already have an account? Sign In</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity onPress={() => navigation.navigate('SignInScreen')}>
-          <Text style={styles.link}>Already have an account? Sign In</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   appBar: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 15,
+    overflow: 'hidden',
+    borderBottomLeftRadius: wp(5),
+    borderBottomRightRadius: wp(5),
+    ...Platform.select({
+      android: {
+        elevation: 8,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+    }),
+  },
+  appBarGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 4,
+    justifyContent: 'space-between',
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(4),
+  },
+  iconBackground: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: wp(5),
+    padding: wp(2),
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  backButton: {
+    marginRight: wp(2),
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   appBarTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: wp(5),
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+  emptySpace: {
+    width: wp(10),
   },
   content: {
     flexGrow: 1,
-    padding: 16,
+    padding: wp(4),
   },
   input: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: wp(3),
+    padding: wp(4),
+    marginBottom: hp(2),
+    fontSize: wp(4),
     borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 20,
-    fontSize: 16,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    ...Platform.select({
+      android: { elevation: 2 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+      },
+    }),
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 5,
+    marginTop: hp(2),
+    borderRadius: wp(3),
+    paddingVertical: hp(1.8),
     alignItems: 'center',
-    marginBottom: 20,
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: wp(4.2),
+    fontWeight: '600',
   },
   link: {
-    color: '#007AFF',
-    fontSize: 16,
+    marginTop: hp(2),
     textAlign: 'center',
-    marginVertical: 5,
+    color: '#2E7D32',
+    fontSize: wp(3.8),
   },
 });
 

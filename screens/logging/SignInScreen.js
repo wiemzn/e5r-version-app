@@ -8,11 +8,15 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
+import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const SignInScreen = () => {
   const [email, setEmail] = useState('');
@@ -32,15 +36,12 @@ const SignInScreen = () => {
 
     setIsLoading(true);
     try {
-      console.log(`Attempting login with email: ${email.trim()}`);
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email.trim(),
         password.trim()
       );
-      console.log(`User logged in: ${userCredential.user.uid}`);
 
-      console.log(`Querying Firestore clients collection for authUid: ${userCredential.user.uid}`);
       const q = query(
         collection(db, 'clients'),
         where('authUid', '==', userCredential.user.uid),
@@ -49,25 +50,20 @@ const SignInScreen = () => {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        console.log(`No client document found for UID: ${userCredential.user.uid}`);
         Alert.alert('Error', 'Account not found. Please sign up.');
         await auth.signOut();
         return;
       }
 
       const doc = querySnapshot.docs[0];
-      console.log(`Client document found: ${doc.id}, data: ${JSON.stringify(doc.data())}`);
       const status = doc.data().status;
-      console.log(`Client status: ${status}`);
 
       if (status === 'approved') {
         Alert.alert('Success', 'Login successful!');
         navigation.replace('HomePage');
       } else {
-        console.log('Account not approved, signing out');
         Alert.alert('Error', `Account is ${status}. Please wait for approval.`);
         await auth.signOut();
-        console.log('User signed out due to non-approved status');
       }
     } catch (error) {
       let message;
@@ -85,106 +81,156 @@ const SignInScreen = () => {
         default:
           message = error.message || 'Login failed';
       }
-      console.log(`FirebaseAuthException: ${error.code}, ${message}`);
       Alert.alert('Error', message);
     } finally {
       setIsLoading(false);
-      console.log(`Login process completed, isLoading: ${isLoading}`);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.appBar}>
-        <Text style={styles.appBarTitle}>Login</Text>
-      </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          returnKeyType="next"
-          onSubmitEditing={() => this.passwordInput.focus()}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          returnKeyType="done"
-          ref={(input) => (this.passwordInput = input)}
-          onSubmitEditing={login}
-        />
-        {isLoading ? (
-          <ActivityIndicator size="large" color="#0000ff" />
-        ) : (
-          <TouchableOpacity style={styles.button} onPress={login}>
-            <Text style={styles.buttonText}>Login</Text>
+    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={['#4CAF50', '#2E7D32']}
+          style={styles.appBar}
+        >
+          <View style={styles.appBarGradient}>
+            <View style={styles.titleContainer}>
+              <Text style={styles.appBarTitle}>Login</Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        <ScrollView contentContainerStyle={styles.content}>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            returnKeyType="next"
+            onSubmitEditing={() => this.passwordInput.focus()}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            returnKeyType="done"
+            ref={(input) => (this.passwordInput = input)}
+            onSubmitEditing={login}
+          />
+          {isLoading ? (
+            <ActivityIndicator size="large" color="#4CAF50" />
+          ) : (
+            <TouchableOpacity onPress={login}>
+              <LinearGradient
+                colors={['#4CAF50', '#2E7D32']}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>Login</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+            <Text style={styles.link}>Forgot Password?</Text>
           </TouchableOpacity>
-        )}
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ForgotPassword')}
-        >
-          <Text style={styles.link}>Forgot Password?</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('SignUpScreen')}
-        >
-          <Text style={styles.link}>Create New Account</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
+          <TouchableOpacity onPress={() => navigation.navigate('SignUpScreen')}>
+            <Text style={styles.link}>Create New Account</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  background: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   appBar: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 15,
+    overflow: 'hidden',
+    borderBottomLeftRadius: wp(5),
+    borderBottomRightRadius: wp(5),
+    ...Platform.select({
+      android: { elevation: 8 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+    }),
+  },
+  appBarGradient: {
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 4,
+    justifyContent: 'center',
+    paddingVertical: hp(2),
+    paddingHorizontal: wp(4),
+  },
+  titleContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   appBarTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: wp(5),
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
   },
   content: {
     flexGrow: 1,
-    padding: 16,
+    padding: wp(4),
   },
   input: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: wp(3),
+    padding: wp(4),
+    marginBottom: hp(2),
+    fontSize: wp(4),
     borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 20,
-    fontSize: 16,
+    borderColor: 'rgba(0, 0, 0, 0.1)',
+    ...Platform.select({
+      android: { elevation: 2 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+    }),
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 5,
+    padding: wp(4),
+    borderRadius: wp(3),
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: hp(2),
+    ...Platform.select({
+      android: { elevation: 4 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+    }),
   },
   buttonText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: wp(4.5),
+    fontWeight: '600',
   },
   link: {
-    color: '#007AFF',
-    fontSize: 16,
+    color: '#4CAF50',
+    fontSize: wp(4),
     textAlign: 'center',
-    marginVertical: 5,
+    marginVertical: hp(1),
   },
 });
 

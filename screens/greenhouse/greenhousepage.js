@@ -1,63 +1,77 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated, Easing } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  Animated,
+  ScrollView,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getDatabase, ref, onValue } from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import CircularProgress from 'react-native-circular-progress-indicator';
-import { ScrollView } from 'react-native';
-import Controls from './controls';
+
 const GreenhousePage = () => {
   const navigation = useNavigation();
   const [sensorData, setSensorData] = useState({});
   const [fadeAnim] = useState(new Animated.Value(0));
   const [pulseAnim] = useState(new Animated.Value(1));
-  const database = getDatabase(app);
-  const databaseRef = ref(database, 'users/11992784/greenhouse');
+  const [uid, setUid] = useState(null);
 
-  // Animation for critical values
+  const database = getDatabase(app);
+
+  // 🔐 Récupérer l'UID de l'utilisateur connecté
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 800,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
+    const auth = getAuth(app);
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUid(user.uid);
+      } else {
+        console.warn('Utilisateur non connecté.');
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  // 🔁 Écouter les données une fois l’UID disponible
+  useEffect(() => {
+    if (!uid) return;
+    const databaseRef = ref(database, `users/${uid}/greenhouse`);
+
+    const unsubscribe = onValue(
+      databaseRef,
+      (snapshot) => {
+        const data = snapshot.val() || {};
+        console.log('Firebase data:', data); // Debug log to verify data structure
+        setSensorData(data);
+
+        Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 800,
-          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, []);
+        }).start();
+      },
+      (error) => {
+        console.error('Firebase error:', error);
+      }
+    );
 
-  useEffect(() => {
-    const unsubscribe = onValue(databaseRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setSensorData(data);
-      // Fade animation when data updates
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-    }, (error) => {
-      console.error('Firebase error:', error);
-    });
     return () => unsubscribe();
-  }, []);
+  }, [uid]);
 
+  // Ensure safe access to sensor data with fallback values
   const pH = typeof sensorData.ph === 'number' ? sensorData.ph : 7.0;
   const temperature = typeof sensorData.temperature === 'number' ? sensorData.temperature : 0;
   const humidity = typeof sensorData.humidity === 'number' ? sensorData.humidity : 0;
-  
+
   const isSystemSafe = pH >= 6.5 && pH <= 7.5;
   const isTempCritical = temperature < 15 || temperature > 30;
   const isHumidityCritical = humidity < 40 || humidity > 80;
@@ -67,27 +81,36 @@ const GreenhousePage = () => {
     const isCritical = criticalCondition;
 
     return (
-      <Animated.View style={[
-        styles.sensorRow,
-        { opacity: fadeAnim },
-        isCritical && { transform: [{ scale: pulseAnim }] }
-      ]}>
-        <View style={[
-          styles.sensorIconContainer,
-          isCritical && styles.criticalIconContainer
-        ]}>
+      <Animated.View
+        style={[
+          styles.sensorRow,
+          { opacity: fadeAnim },
+          isCritical && { transform: [{ scale: pulseAnim }] },
+        ]}
+      >
+        <View
+          style={[
+            styles.sensorIconContainer,
+            isCritical && styles.criticalIconContainer,
+          ]}
+        >
           <Icon name={icon} size={wp(6)} color={isCritical ? '#FFFFFF' : '#E0E0E0'} />
         </View>
         <Text style={styles.sensorLabel}>{label}</Text>
         <View style={styles.sensorValueContainer}>
-          <Text style={[
-            styles.sensorValue,
-            isCritical && styles.criticalValue
-          ]}>
-            {safeValue}{unit}
+          <Text
+            style={[styles.sensorValue, isCritical && styles.criticalValue]}
+          >
+            {safeValue}
+            {unit}
           </Text>
           {isCritical && (
-            <Icon name="warning" size={wp(4)} color="#FF5252" style={styles.warningIcon} />
+            <Icon
+              name="warning"
+              size={wp(4)}
+              color="#FF5252"
+              style={styles.warningIcon}
+            />
           )}
         </View>
       </Animated.View>
@@ -95,8 +118,15 @@ const GreenhousePage = () => {
   };
 
   const renderNavigationBox = ({ title, icon, onPress, color, description }) => (
-    <TouchableOpacity 
-      onPress={onPress}
+    <TouchableOpacity
+      onPress={() => {
+        console.log(`Navigating to ${title}`); // Log pour déboguer les clics
+        try {
+          onPress();
+        } catch (error) {
+          console.error(`Navigation error to ${title}:`, error); // Capture des erreurs de navigation
+        }
+      }}
       activeOpacity={0.7}
     >
       <LinearGradient
@@ -112,7 +142,12 @@ const GreenhousePage = () => {
           <Text style={styles.navigationText}>{title}</Text>
           <Text style={styles.navigationDescription}>{description}</Text>
         </View>
-        <Icon name="chevron-right" size={wp(6)} color="#FFFFFF" style={styles.chevronIcon} />
+        <Icon
+          name="chevron-right"
+          size={wp(6)}
+          color="#FFFFFF"
+          style={styles.chevronIcon}
+        />
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -128,139 +163,112 @@ const GreenhousePage = () => {
   };
 
   return (
-    <LinearGradient
-      colors={['#f5f7fa', '#e4f5e8']}
-      style={styles.background}
-    >
+    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
       <SafeAreaView style={styles.container}>
-        <View style={styles.appBar}>
-          <LinearGradient
-            colors={['#2E7D32', '#1B5E20']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.appBarGradient}
-          >
-            <TouchableOpacity 
+        <LinearGradient
+          colors={['#4CAF50', '#2E7D32']}
+          style={styles.appBar}
+        >
+          <View style={styles.appBarGradient}>
+            <TouchableOpacity
               onPress={() => navigation.goBack()}
               style={styles.backButton}
             >
               <View style={styles.iconBackground}>
-                <Icon name="arrow-back" size={wp(5.5)} color="#FFFFFF" />
+                <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
-
             <View style={styles.titleContainer}>
-              <Icon name="eco" size={wp(5)} color="#FFFFFF" style={styles.titleIcon} />
-              <Text style={styles.appBarTitle}>Greenhouse Monitor</Text>
+              <Icon
+                name="local-florist"
+                size={wp(6)}
+                color="#FFFFFF"
+                style={styles.titleIcon}
+              />
+              <Text style={styles.appBarTitle}>Greenhouse</Text>
             </View>
-
-            <TouchableOpacity style={styles.menuButton}>
-              <View style={styles.iconBackground}>
-                <Icon name="more-vert" size={wp(5.5)} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>
-  
+           
+          </View>
+        </LinearGradient>
         <ScrollView style={styles.content}>
-          {/* Status Card */}
-          <Animated.View style={[styles.statusCard, { opacity: fadeAnim }]}>
-            <LinearGradient
-              colors={isSystemSafe ? ['#4CAF50', '#2E7D32'] : ['#FF5252', '#D32F2F']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.statusGradient}
-            >
+          <LinearGradient
+            colors={isSystemSafe ? ['#4CAF50', '#2E7D32'] : ['#FF5252', '#B71C1C']}
+            style={styles.statusCard}
+          >
+            <View style={styles.statusGradient}>
               <View style={styles.statusHeader}>
                 <View style={styles.statusIconContainer}>
                   <Icon
-                    name={isSystemSafe ? 'check-circle' : 'error'}
-                    size={wp(10)}
+                    name={isSystemSafe ? 'check-circle' : 'warning'}
+                    size={wp(8)}
                     color="#FFFFFF"
                   />
                 </View>
                 <View style={styles.statusTextContainer}>
                   <Text style={styles.statusTitle}>System Status</Text>
-                  <Text style={styles.statusMessage}>{getSystemStatusMessage()}</Text>
+                  <Text style={styles.statusMessage}>
+                    {getSystemStatusMessage()}
+                  </Text>
                 </View>
               </View>
-  
               <View style={styles.sensorGrid}>
                 <View style={styles.sensorColumn}>
-                  <View style={styles.gaugeContainer}>
-                    <CircularProgress
-                      value={humidity}
-                      radius={wp(12)}
-                      duration={1000}
-                      progressValueColor="#FFFFFF"
-                      activeStrokeColor="#FFFFFF"
-                      inActiveStrokeColor="rgba(255,255,255,0.3)"
-                      inActiveStrokeOpacity={0.3}
-                      maxValue={100}
-                      title="Humidity"
-                      titleColor="#FFFFFF"
-                      titleStyle={{ fontWeight: 'bold' }}
-                      valueFormatter={(value) => `${value}%`}
-                    />
-                  </View>
-                  {renderSensorRow('thermostat', 'Temperature', temperature, '°C', isTempCritical)}
+                  {renderSensorRow(
+                    'analytics',
+                    'pH',
+                    pH,
+                    '',
+                    pH < 6.5 || pH > 7.5
+                  )}
+                  {renderSensorRow(
+                    'thermostat',
+                    'Temperature',
+                    temperature,
+                    '°C',
+                    isTempCritical
+                  )}
                 </View>
                 <View style={styles.sensorColumn}>
-                  <View style={styles.gaugeContainer}>
-                    <CircularProgress
-                      value={pH}
-                      radius={wp(12)}
-                      duration={1000}
-                      progressValueColor="#FFFFFF"
-                      activeStrokeColor="#FFFFFF"
-                      inActiveStrokeColor="rgba(255,255,255,0.3)"
-                      maxValue={140}
-                      valueSuffix=" pH"
-                      title="pH Level"
-                      titleColor="#FFFFFF"
-                      titleStyle={{ fontWeight: 'bold' }}
-                      activeStrokeWidth={8}
-                    />
-                  </View>
-                  {renderSensorRow('lightbulb', 'LED Status', sensorData.led)}
+                  {renderSensorRow(
+                    'water-drop',
+                    'Humidity',
+                    humidity,
+                    '%',
+                    isHumidityCritical
+                  )}
                 </View>
               </View>
-            </LinearGradient>
-          </Animated.View>
-  
-          {/* Last Updated */}
+            </View>
+          </LinearGradient>
+          {renderNavigationBox({
+            title: 'Environment',
+            icon: 'thermostat',
+            onPress: () => navigation.navigate('EnvironmentPage'), // Corrigé
+            color: '#4CAF50',
+            description: 'Monitor temperature and humidity',
+          })}
+          {renderNavigationBox({
+            title: 'Reservoir',
+            icon: 'water-drop',
+            onPress: () => navigation.navigate('ReservoirPage'), // Corrigé
+            color: '#2196F3',
+            description: 'Check water level and pH',
+          })}
+          {renderNavigationBox({
+            title: 'Controls',
+            icon: 'tune',
+            onPress: () => navigation.navigate('Controls'),
+            color: '#FF9800',
+            description: 'Manage system actuators',
+          })}
           <Text style={styles.lastUpdated}>
             Last updated: {new Date().toLocaleTimeString()}
           </Text>
-  
-          {/* Navigation Boxes */}
-          {renderNavigationBox({
-            title: 'Environment Controls',
-            icon: 'device-thermostat',
-            onPress: () => navigation.navigate('EnvironmentPage'),
-            color: '#2196F3',
-            description: 'Adjust temperature, humidity, and lighting'
-          })}
-  
-          {renderNavigationBox({
-            title: 'Reservoir Management',
-            icon: 'water',
-            onPress: () => navigation.navigate('ReservoirPage'),
-            color: '#00ACC1',
-            description: 'Monitor and adjust nutrient levels'
-          })}
-          {renderNavigationBox({
-            title: 'Control Panel',
-            icon: 'settings',
-            onPress: () => navigation.replace('Controls'),
-            color: '#00ACC1',
-            description: 'Monitor and control greenhouse systems'
-          })}
-
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
-  );};
+  );
+};
 
 const styles = StyleSheet.create({
   background: {

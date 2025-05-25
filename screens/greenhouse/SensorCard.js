@@ -4,9 +4,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 
-const SensorCard = ({ sensorName, value, unit, isExpanded, onToggle, chart }) => {
+const SensorCard = ({
+  sensorName = 'Unknown',
+  value = 'N/A',
+  unit = '',
+  isExpanded = false,
+  onToggle = () => {},
+  chart = null
+}) => {
   const getIcon = (name) => {
-    switch (name?.toLowerCase()) {
+    const sensor = name?.toLowerCase?.(); // Safe check
+    switch (sensor) {
       case 'humidity':
         return 'water-drop';
       case 'temperature':
@@ -31,9 +39,9 @@ const SensorCard = ({ sensorName, value, unit, isExpanded, onToggle, chart }) =>
       <TouchableOpacity onPress={onToggle} activeOpacity={0.7}>
         <View style={styles.header}>
           <Icon name={getIcon(sensorName)} size={wp(6)} color="#FFFFFF" />
-          <Text style={styles.name}>{sensorName || 'Unknown'}</Text>
+          <Text style={styles.name}>{sensorName}</Text>
           <Text style={styles.value}>
-            {value != null ? value : 'N/A'} {unit || ''}
+            {value} {unit}
           </Text>
         </View>
       </TouchableOpacity>
