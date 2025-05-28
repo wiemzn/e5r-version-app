@@ -7,10 +7,13 @@ import * as ImagePicker from 'expo-image-picker';
 import Toast from 'react-native-toast-message';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import axios from 'axios';
+import { useNavigation } from '@react-navigation/native';
+import AppBackground from '../AppBackground';
 
 const { width, height } = Dimensions.get('window');
 
 const PlantDiseasePage = () => {
+  const navigation = useNavigation();
   const [imageUri, setImageUri] = useState(null);
   const [prediction, setPrediction] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -175,137 +178,149 @@ const PlantDiseasePage = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#f5fff5', '#e8f5e9']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
-      />
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Plant Disease Scanner</Text>
-        <Text style={styles.headerSubtitle}>Identify plant diseases with AI</Text>
-      </View>
+    <AppBackground>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Icon name="arrow-back" size={wp(5)} color="#000000" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Plant Disease Scanner</Text>
+        </View>
 
-      <View style={styles.content}>
-        {!imageUri ? (
-          <View style={styles.uploadSection}>
-            <View style={styles.uploadIllustration}>
-              <Icon name="photo-camera" size={wp(20)} color="#4CAF50" style={styles.uploadIcon} />
-              <Text style={styles.uploadText}>Capture or upload an image of your plant</Text>
-            </View>
-            
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity 
-                style={[styles.button, styles.cameraButton]} 
-                onPress={takePhoto} 
-                disabled={isLoading}
-              >
-                <Icon name="camera-alt" size={wp(6)} color="#FFFFFF" />
-                <Text style={styles.buttonText}>Take Photo</Text>
-              </TouchableOpacity>
+        <View style={styles.content}>
+          <Text style={styles.subtitle}>Identify plant diseases with AI</Text>
+
+          {!imageUri ? (
+            <View style={styles.uploadSection}>
+              <View style={styles.uploadIllustration}>
+                <View style={styles.iconContainer}>
+                  <Icon name="photo-camera" size={wp(15)} color="#4CAF50" />
+                </View>
+                <Text style={styles.uploadText}>Capture or upload an image of your plant</Text>
+              </View>
               
-              <TouchableOpacity 
-                style={[styles.button, styles.uploadButton]} 
-                onPress={pickImage} 
-                disabled={isLoading}
-              >
-                <Icon name="photo-library" size={wp(6)} color="#FFFFFF" />
-                <Text style={styles.buttonText}>Upload Image</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.imageSection}>
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: imageUri }} style={styles.image} />
-              <View style={styles.imageActions}>
+              <View style={styles.buttonContainer}>
                 <TouchableOpacity 
-                  style={styles.changeImageButton} 
-                  onPress={() => setImageUri(null)}
+                  style={[styles.button, styles.cameraButton]} 
+                  onPress={takePhoto} 
+                  disabled={isLoading}
                 >
-                  <Icon name="close" size={wp(5)} color="#FFFFFF" />
+                  <Icon name="camera-alt" size={wp(6)} color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Take Photo</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.button, styles.uploadButton]} 
+                  onPress={pickImage} 
+                  disabled={isLoading}
+                >
+                  <Icon name="photo-library" size={wp(6)} color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Upload Image</Text>
                 </TouchableOpacity>
               </View>
             </View>
-            
-            <TouchableOpacity 
-              style={styles.submitButton} 
-              onPress={submitImage} 
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Icon name="search" size={wp(5)} color="#FFFFFF" style={{ marginRight: 10 }} />
-                  <Text style={styles.submitButtonText}>Analyze Image</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {prediction && (
-          <View style={styles.resultContainer}>
-            <Text style={styles.resultTitle}>Analysis Results</Text>
-            
-            <View style={styles.resultCard}>
-              <View style={styles.resultRow}>
-                <Icon name="local-florist" size={wp(6)} color="#4CAF50" />
-                <View style={styles.resultTextContainer}>
-                  <Text style={styles.resultLabel}>Disease Detected</Text>
-                  <Text style={styles.resultValue}>{prediction.disease}</Text>
+          ) : (
+            <View style={styles.imageSection}>
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: imageUri }} style={styles.image} />
+                <View style={styles.imageActions}>
+                  <TouchableOpacity 
+                    style={styles.changeImageButton} 
+                    onPress={() => setImageUri(null)}
+                  >
+                    <Icon name="close" size={wp(5)} color="#FFFFFF" />
+                  </TouchableOpacity>
                 </View>
               </View>
               
-              <View style={styles.divider} />
-              
-              <View style={styles.resultRow}>
-                <Icon name="assessment" size={wp(6)} color="#4CAF50" />
-                <View style={styles.resultTextContainer}>
-                  <Text style={styles.resultLabel}>Confidence Level</Text>
-                  <Text style={styles.resultValue}>{(prediction.confidence * 100).toFixed(2)}%</Text>
-                </View>
-              </View>
+              <TouchableOpacity 
+                style={styles.submitButton} 
+                onPress={submitImage} 
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Icon name="search" size={wp(5)} color="#FFFFFF" style={{ marginRight: 10 }} />
+                    <Text style={styles.submitButtonText}>Analyze Image</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
-            
-            <TouchableOpacity style={styles.tipsButton}>
-              <Text style={styles.tipsButtonText}>View Treatment Tips</Text>
-              <Icon name="chevron-right" size={wp(5)} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-      
-      <Toast />
-    </SafeAreaView>
+          )}
+
+          {prediction && (
+            <View style={styles.resultContainer}>
+              <Text style={styles.resultTitle}>Analysis Results</Text>
+              
+              <View style={styles.resultCard}>
+                <View style={styles.resultRow}>
+                  <Icon name="local-florist" size={wp(6)} color="#4CAF50" />
+                  <View style={styles.resultTextContainer}>
+                    <Text style={styles.resultLabel}>Disease Detected</Text>
+                    <Text style={styles.resultValue}>{prediction.disease}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.divider} />
+                
+                <View style={styles.resultRow}>
+                  <Icon name="assessment" size={wp(6)} color="#4CAF50" />
+                  <View style={styles.resultTextContainer}>
+                    <Text style={styles.resultLabel}>Confidence Level</Text>
+                    <Text style={styles.resultValue}>{(prediction.confidence * 100).toFixed(2)}%</Text>
+                  </View>
+                </View>
+              </View>
+              
+              <TouchableOpacity style={styles.tipsButton}>
+                <Text style={styles.tipsButtonText}>View Treatment Tips</Text>
+                <Icon name="chevron-right" size={wp(5)} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        
+        <Toast />
+      </SafeAreaView>
+    </AppBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: wp(5),
     paddingTop: hp(2),
     paddingBottom: hp(1),
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    backgroundColor: 'transparent',
   },
-  headerTitle: {
+  backButton: {
+    padding: wp(2.5),
+  },
+  title: {
     fontSize: wp(7),
-    fontWeight: 'bold',
-    color: '#2E7D32',
-    marginBottom: hp(0.5),
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
+    flex: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
   },
-  headerSubtitle: {
+  subtitle: {
     fontSize: wp(4),
-    color: '#757575',
+    color: '#555555',
+    textAlign: 'center',
+    marginBottom: hp(2),
   },
   content: {
     flex: 1,
@@ -318,18 +333,34 @@ const styles = StyleSheet.create({
   },
   uploadIllustration: {
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: wp(3),
+    padding: wp(5),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3,
     marginBottom: hp(5),
   },
-  uploadIcon: {
-    opacity: 0.8,
+  iconContainer: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)', // Fond vert clair pour l'icône
+    width: wp(20),
+    height: wp(20),
+    borderRadius: wp(10),
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: hp(2),
   },
+  uploadIcon: {
+    // Supprimé ici car géré par iconContainer
+  },
   uploadText: {
-    fontSize: wp(4.5),
-    color: '#616161',
+    fontSize: wp(5), // Taille augmentée
+    fontWeight: 'bold', // Texte en gras
+    color: '#424242', // Couleur plus sombre
     textAlign: 'center',
-    maxWidth: wp(80),
-    lineHeight: hp(3),
+    lineHeight: hp(3.5), // Espacement ajusté
   },
   buttonContainer: {
     flexDirection: 'row',

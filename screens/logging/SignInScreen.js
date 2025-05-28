@@ -9,9 +9,10 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ImageBackground,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, db } from '../../firebaseConfig';
@@ -88,20 +89,19 @@ const SignInScreen = () => {
   };
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
+    <ImageBackground
+      source={require('../../assets/background.jpg')}
+      style={styles.background}
+      blurRadius={5}
+    >
       <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#4CAF50', '#2E7D32']}
-          style={styles.appBar}
-        >
-          <View style={styles.appBarGradient}>
-            <View style={styles.titleContainer}>
-              <Text style={styles.appBarTitle}>Login</Text>
-            </View>
-          </View>
-        </LinearGradient>
-
         <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.title}>Welcome to</Text>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -123,15 +123,10 @@ const SignInScreen = () => {
             onSubmitEditing={login}
           />
           {isLoading ? (
-            <ActivityIndicator size="large" color="#4CAF50" />
+            <ActivityIndicator size="large" color="#2E7D32" />
           ) : (
-            <TouchableOpacity onPress={login}>
-              <LinearGradient
-                colors={['#4CAF50', '#2E7D32']}
-                style={styles.button}
-              >
-                <Text style={styles.buttonText}>Login</Text>
-              </LinearGradient>
+            <TouchableOpacity onPress={login} style={styles.button}>
+              <Text style={styles.buttonText}>Login</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
@@ -142,7 +137,7 @@ const SignInScreen = () => {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
-    </LinearGradient>
+    </ImageBackground>
   );
 };
 
@@ -153,40 +148,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  appBar: {
-    overflow: 'hidden',
-    borderBottomLeftRadius: wp(5),
-    borderBottomRightRadius: wp(5),
-    ...Platform.select({
-      android: { elevation: 8 },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-      },
-    }),
-  },
-  appBarGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: hp(2),
-    paddingHorizontal: wp(4),
-  },
-  titleContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  appBarTitle: {
-    fontSize: wp(5),
-    fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
   content: {
     flexGrow: 1,
     padding: wp(4),
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: wp(7),
+    fontWeight: '600',
+    color: '#000000',
+    marginTop: hp(2),
+    marginBottom: hp(2),
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
+  },
+  logo: {
+    width: wp(50),
+    height: hp(25),
+    marginBottom: hp(3),
   },
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -196,6 +175,7 @@ const styles = StyleSheet.create({
     fontSize: wp(4),
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
+    width: wp(90),
     ...Platform.select({
       android: { elevation: 2 },
       ios: {
@@ -207,10 +187,12 @@ const styles = StyleSheet.create({
     }),
   },
   button: {
+    backgroundColor: '#1B5E20',
     padding: wp(4),
     borderRadius: wp(3),
     alignItems: 'center',
     marginBottom: hp(2),
+    width: wp(90),
     ...Platform.select({
       android: { elevation: 4 },
       ios: {
@@ -227,7 +209,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   link: {
-    color: '#4CAF50',
+    color: '#2E7D32',
     fontSize: wp(4),
     textAlign: 'center',
     marginVertical: hp(1),

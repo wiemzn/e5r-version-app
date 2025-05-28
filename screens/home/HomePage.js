@@ -8,41 +8,42 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import { auth } from '../../firebaseConfig';
 import AuthService from '../logging/AuthService';
 import * as Animatable from 'react-native-animatable';
+import AppBackground from '../AppBackground';
 
 const cubes = [
   { 
     title: 'Greenhouse',
     icon: 'eco',
-    color: '#2E7D32',
-    gradient: ['#43A047', '#1B5E20'],
+    color: '#A5D6A7',
+    gradient: ['#A5D6A7', '#66BB6A'],
     description: 'Monitor and control your greenhouse'
   },
   { 
     title: 'Green Energy',
     icon: 'bolt',
-    color: '#FF8F00',
-    gradient: ['#FFA000', '#FF6F00'],
+    color: '#FFCC80',
+    gradient: ['#FFCC80', '#FFB300'],
     description: 'Track energy production'
   },
   { 
     title: 'Plant Health',
     icon: 'health-and-safety',
-    color: '#C62828',
-    gradient: ['#E53935', '#C62828'],
+    color: '#EF9A9A',
+    gradient: ['#EF9A9A', '#F44336'],
     description: 'Check plant conditions'
   },
   { 
     title: 'Weather',
     icon: 'wb-sunny',
-    color: '#0288D1',
-    gradient: ['#039BE5', '#0277BD'],
+    color: '#81D4FA',
+    gradient: ['#81D4FA', '#42A5F5'],
     description: 'View weather forecast'
   },
 ];
 
 const { width } = Dimensions.get('window');
 const numColumns = 2;
-const cubeSize = (width - wp(12)) / numColumns;
+const cubeSize = (width - wp(12)) / numColumns - wp(4); // Ajustement pour éviter le rognage
 
 const HomePage = () => {
   const navigation = useNavigation();
@@ -97,7 +98,7 @@ const HomePage = () => {
           style={[styles.cube, { width: cubeSize, height: cubeSize }]}
         >
           <View style={styles.iconContainer}>
-            <Icon name={item.icon} size={wp(12)} color="#FFFFFF" />
+            <Icon name={item.icon} size={wp(10)} color="#FFFFFF" />
           </View>
           <Text style={styles.cubeTitle}>{item.title}</Text>
           <Text style={styles.cubeDescription}>{item.description}</Text>
@@ -114,32 +115,31 @@ const HomePage = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={['#1B5E20', '#2E7D32', '#388E3C']}
-        style={styles.background}
-      >
-        <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
+    <AppBackground>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.content}>
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>{getGreeting()},</Text>
-              <Text style={styles.userName}>{userName}</Text>
-            </View>
+            <Text style={styles.title}>Home</Text>
             <TouchableOpacity 
               onPress={handleLogout}
               style={styles.logoutButton}
             >
-              <Icon name="logout" size={wp(5)} color="#FFFFFF" />
+              <Icon name="logout" size={wp(5)} color="#000000" />
             </TouchableOpacity>
           </View>
+
+          <Animated.View style={[styles.greetingContainer, { opacity: fadeAnim }]}>
+            <Text style={styles.greeting}>{getGreeting()},</Text>
+            <Text style={styles.userName}>{userName}</Text>
+          </Animated.View>
 
           <Animatable.View 
             animation="fadeInDown" 
             delay={200}
             style={styles.connectionStatus}
           >
-            <Icon name="agriculture" size={wp(4)} color="#FFFFFF" />
+            <Icon name="agriculture" size={wp(4)} color="#000000" />
             <Text style={styles.connectionText}>System Online</Text>
             <View style={styles.statusDot} />
           </Animatable.View>
@@ -162,59 +162,71 @@ const HomePage = () => {
               Last updated: {new Date().toLocaleTimeString()}
             </Text>
           </Animatable.View>
-        </Animated.View>
-      </LinearGradient>
-    </SafeAreaView>
+        </View>
+      </SafeAreaView>
+    </AppBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  background: {
-    flex: 1,
+    paddingBottom: hp(2), // Ajout pour éviter le rognage en bas
   },
   content: {
     flex: 1,
     paddingTop: hp(2),
+    paddingHorizontal: wp(5),
   },
   header: {
-    paddingHorizontal: wp(5),
-    paddingVertical: hp(2),
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: hp(2),
+  },
+  title: {
+    fontSize: wp(7),
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
+    flex: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
+  },
+  logoutButton: {
+    padding: wp(2.5),
+  },
+  greetingContainer: {
+    marginBottom: hp(2),
   },
   greeting: {
     fontSize: wp(4),
-    color: '#E8F5E9',
+    color: '#555555',
     marginBottom: hp(0.5),
   },
   userName: {
     fontSize: wp(6),
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#000000',
     letterSpacing: 0.5,
   },
-  logoutButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    padding: wp(2.5),
-    borderRadius: wp(6),
-  },
   connectionStatus: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingVertical: hp(1),
     paddingHorizontal: wp(4),
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: wp(5),
-    marginHorizontal: wp(5),
-    marginTop: hp(2),
+    marginBottom: hp(2),
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
   },
   connectionText: {
     fontSize: wp(3.5),
-    color: '#FFFFFF',
+    color: '#000000',
     marginLeft: wp(2),
     flex: 1,
   },
@@ -226,11 +238,11 @@ const styles = StyleSheet.create({
     marginLeft: wp(2),
   },
   grid: {
-    padding: wp(3),
+    padding: wp(1), // Réduit le padding
     paddingBottom: hp(2),
   },
   cubeWrapper: {
-    margin: wp(2),
+    margin: wp(1), // Réduit la marge
     borderRadius: wp(4),
     ...Platform.select({
       android: {
@@ -248,29 +260,30 @@ const styles = StyleSheet.create({
     borderRadius: wp(4),
     alignItems: 'center',
     justifyContent: 'center',
-    padding: wp(4),
+    padding: wp(2), // Réduit le padding interne
     overflow: 'hidden',
   },
   iconContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    width: wp(20),
-    height: wp(20),
-    borderRadius: wp(10),
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: wp(15),
+    height: wp(15),
+    borderRadius: wp(7.5),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: hp(2),
+    marginBottom: hp(1),
   },
   cubeTitle: {
-    fontSize: wp(4.5),
+    fontSize: wp(4),
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: hp(1),
+    marginBottom: hp(0.5),
   },
   cubeDescription: {
-    fontSize: wp(3.2),
+    fontSize: wp(3),
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
+    paddingHorizontal: wp(1),
   },
   footer: {
     paddingVertical: hp(2),
@@ -281,7 +294,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: wp(3.2),
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'rgba(0, 0, 0, 0.6)',
   },
 });
 

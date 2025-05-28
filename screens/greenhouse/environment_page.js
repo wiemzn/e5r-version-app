@@ -10,19 +10,19 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getDatabase, ref, onValue } from 'firebase/database';
-import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Ajout de l'importation
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { LineChart } from 'react-native-chart-kit';
 import SensorCard from './SensorCard';
 import GoogleSheetsService from '../../googlesheetservice';
 import { useNavigation } from '@react-navigation/native';
+import AppBackground from '../AppBackground';
 
 const { width } = Dimensions.get('window');
-const CHART_WIDTH = width * 0.85;
+const CHART_WIDTH = wp(90);
 
 const EnvironmentPage = () => {
   const navigation = useNavigation();
@@ -36,7 +36,6 @@ const EnvironmentPage = () => {
 
   const database = getDatabase(app);
 
-  // Récupérer l'UID de l'utilisateur connecté
   useEffect(() => {
     const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -59,7 +58,6 @@ const EnvironmentPage = () => {
       controlsRef,
       (snapshot) => {
         const data = snapshot.val() || {};
-        console.log('EnvironmentPage Firebase data:', data); // Debug
         setSensorData(data);
       },
       (error) => {
@@ -128,7 +126,7 @@ const EnvironmentPage = () => {
         chart={
           expandedSensor === item.sensorName ? (
             isChartLoading ? (
-              <ActivityIndicator size="small" color="#388E3C" style={styles.chartLoader} />
+              <ActivityIndicator size="small" color="#2E7D32" style={styles.chartLoader} />
             ) : chartPoints.length > 0 ? (
               <View style={styles.chartContainer}>
                 <View style={styles.filterButtons}>
@@ -159,7 +157,7 @@ const EnvironmentPage = () => {
                       datasets: [{ data: chartPoints.map((p) => p.y) }],
                     }}
                     width={CHART_WIDTH}
-                    height={220}
+                    height={hp(30)}
                     chartConfig={{
                       backgroundGradientFrom: '#FFFFFF',
                       backgroundGradientTo: '#FFFFFF',
@@ -192,56 +190,51 @@ const EnvironmentPage = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#E8F5E9', '#E1F5FE']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
-      />
-      <View style={styles.appBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
-        </TouchableOpacity>
-        <View style={styles.titleContainer}>
-          <Icon name="thermostat" size={wp(6)} color="#FFFFFF" style={styles.titleIcon} />
-          <Text style={styles.appBarTitle}>Environment</Text>
-        </View>
-        <View style={styles.placeholder} />
-      </View>
-      {Object.keys(sensorData).length === 0 ? (
-        <ActivityIndicator size="large" color="#388E3C" style={styles.loader} />
-      ) : (
+    <AppBackground>
+      <SafeAreaView style={styles.container}>
         <FlatList
           data={data}
           renderItem={renderItem}
           keyExtractor={(item) => item.sensorName}
           contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            <>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Icon name="arrow-back" size={wp(6)} color="#000000" />
+              </TouchableOpacity>
+              <Text style={styles.title}>Environment</Text>
+            </>
+          }
         />
-      )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </AppBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  appBar: {
-    backgroundColor: '#388E3C',
-    paddingVertical: hp(2),
-    paddingHorizontal: wp(4),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    elevation: 4,
-  },
-  backButton: { padding: wp(1) },
-  titleContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  titleIcon: { marginRight: wp(2) },
-  appBarTitle: { fontSize: wp(6), fontWeight: 'bold', color: '#FFFFFF' },
-  placeholder: { width: wp(8) },
   content: { padding: wp(4) },
-  loader: { flex: 1, justifyContent: 'center' },
-  chartContainer: { marginVertical: hp(2), maxHeight: 300 },
+  backButton: {
+    position: 'absolute',
+    top: hp(2),
+    left: wp(4),
+    zIndex: 1,
+  },
+  title: {
+    fontSize: wp(7),
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
+    marginBottom: hp(2),
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
+  },
+  chartContainer: {
+    marginVertical: hp(2),
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: wp(3),
+    padding: wp(4),
+  },
   chartLoader: { marginVertical: hp(2) },
   placeholderText: {
     fontSize: wp(4),
@@ -262,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E0E0',
     marginHorizontal: wp(1),
   },
-  filterButtonActive: { backgroundColor: '#388E3C' },
+  filterButtonActive: { backgroundColor: '#1B5E20' },
   filterButtonText: { fontSize: wp(3.5), color: '#000000', fontWeight: '600' },
   filterButtonTextActive: { color: '#FFFFFF' },
 });

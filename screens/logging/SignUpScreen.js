@@ -9,9 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ImageBackground,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, doc, setDoc, getDoc } from 'firebase/firestore';
@@ -26,6 +26,7 @@ const SignUpScreen = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false); // State to track image loading
   const navigation = useNavigation();
 
   const nameInputRef = useRef(null);
@@ -33,6 +34,22 @@ const SignUpScreen = () => {
   const emailInputRef = useRef(null);
   const phoneInputRef = useRef(null);
   const passwordInputRef = useRef(null);
+
+  // Preload the background image
+  useEffect(() => {
+    const loadImage = async () => {
+      try {
+        // Simulate image preload (replace with Image.prefetch if using a remote image)
+        setTimeout(() => {
+          setImageLoaded(true); // Set to true after a short delay to simulate load
+        }, 100); // Adjust delay based on testing
+      } catch (error) {
+        console.error('Error preloading image:', error);
+        setImageLoaded(true); // Proceed even if preload fails
+      }
+    };
+    loadImage();
+  }, []);
 
   const validateForm = () => {
     if (!name.trim()) {
@@ -55,8 +72,8 @@ const SignUpScreen = () => {
       Alert.alert('Error', 'Please enter your phone number');
       return false;
     }
-    if (!/^\+?\d{10,15}$/.test(phone.trim())) {
-      Alert.alert('Error', 'Please enter a valid phone number (10-15 digits)');
+    if (!/^\+?\d{8}$/.test(phone.trim())) {
+      Alert.alert('Error', 'Phone number must be exactly 8 digits');
       return false;
     }
     if (password.trim().length < 6) {
@@ -144,24 +161,30 @@ const SignUpScreen = () => {
     };
   }, []);
 
-  return (
-    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
-      <SafeAreaView style={styles.container}>
-        <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.appBar}>
-          <View style={styles.appBarGradient}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <View style={styles.iconBackground}>
-                <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <View style={styles.titleContainer}>
-              <Text style={styles.appBarTitle}>Create Account</Text>
-            </View>
-            <View style={styles.emptySpace} />
-          </View>
-        </LinearGradient>
+  // Show a loading indicator or fallback background until the image is loaded
+  if (!imageLoaded) {
+    return (
+      <View style={[styles.background, styles.fallbackBackground]}>
+        <ActivityIndicator size="large" color="#2E7D32" />
+      </View>
+    );
+  }
 
+  return (
+    <ImageBackground
+      source={require('../../assets/background.jpg')}
+      style={styles.background}
+      blurRadius={5}
+      onLoad={() => setImageLoaded(true)} // Ensure imageLoaded is true when image loads
+    >
+      <SafeAreaView style={styles.container}>
         <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.headerContainer}>
+            <TouchableOpacity onPress={() => navigation.navigate('SignInScreen')} style={styles.backButton}>
+              <Icon name="arrow-back" size={wp(6)} color="#000000" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Sign Up</Text>
+          </View>
           <TextInput
             style={styles.input}
             placeholder="Full Name"
@@ -212,23 +235,19 @@ const SignUpScreen = () => {
             returnKeyType="done"
             onSubmitEditing={signUp}
           />
-
           {isLoading ? (
-            <ActivityIndicator size="large" color="#4CAF50" />
+            <ActivityIndicator size="large" color="#2E7D32" />
           ) : (
-            <TouchableOpacity onPress={signUp}>
-              <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.button}>
-                <Text style={styles.buttonText}>Sign Up</Text>
-              </LinearGradient>
+            <TouchableOpacity onPress={signUp} style={styles.button}>
+              <Text style={styles.buttonText}>Sign Up</Text>
             </TouchableOpacity>
           )}
-
           <TouchableOpacity onPress={() => navigation.navigate('SignInScreen')}>
             <Text style={styles.link}>Already have an account? Sign In</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
-    </LinearGradient>
+    </ImageBackground>
   );
 };
 
@@ -236,59 +255,38 @@ const styles = StyleSheet.create({
   background: {
     flex: 1,
   },
+  fallbackBackground: {
+    backgroundColor: '#f5f7fa', // Fallback color to match original design
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
   },
-  appBar: {
-    overflow: 'hidden',
-    borderBottomLeftRadius: wp(5),
-    borderBottomRightRadius: wp(5),
-    ...Platform.select({
-      android: {
-        elevation: 8,
-      },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-      },
-    }),
-  },
-  appBarGradient: {
+  headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingVertical: hp(2),
-    paddingHorizontal: wp(4),
-  },
-  iconBackground: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: wp(5),
-    padding: wp(2),
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    position: 'relative',
+    width: '100%',
   },
   backButton: {
-    marginRight: wp(2),
+    position: 'absolute',
+    left: wp(4),
   },
-  titleContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  appBarTitle: {
-    fontSize: wp(5),
+  title: {
+    fontSize: wp(7),
     fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  emptySpace: {
-    width: wp(10),
+    color: '#000000',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
   },
   content: {
     flexGrow: 1,
     padding: wp(4),
+    alignItems: 'center',
   },
   input: {
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -298,6 +296,7 @@ const styles = StyleSheet.create({
     fontSize: wp(4),
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.1)',
+    width: wp(90),
     ...Platform.select({
       android: { elevation: 2 },
       ios: {
@@ -309,10 +308,13 @@ const styles = StyleSheet.create({
     }),
   },
   button: {
-    marginTop: hp(2),
-    borderRadius: wp(3),
+    backgroundColor: '#1B5E20',
     paddingVertical: hp(1.8),
+    borderRadius: wp(3),
     alignItems: 'center',
+    marginTop: hp(2),
+    marginBottom: hp(2),
+    width: wp(90),
   },
   buttonText: {
     color: '#FFFFFF',

@@ -17,6 +17,7 @@ import { app } from '../../firebaseConfig';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import CircularProgress from 'react-native-circular-progress-indicator';
+import AppBackground from '../AppBackground';
 
 const GreenhousePage = () => {
   const navigation = useNavigation();
@@ -27,7 +28,6 @@ const GreenhousePage = () => {
 
   const database = getDatabase(app);
 
-  // 🔐 Récupérer l'UID de l'utilisateur connecté
   useEffect(() => {
     const auth = getAuth(app);
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -41,7 +41,6 @@ const GreenhousePage = () => {
     return () => unsubscribeAuth();
   }, []);
 
-  // 🔁 Écouter les données une fois l’UID disponible
   useEffect(() => {
     if (!uid) return;
     const databaseRef = ref(database, `users/${uid}/greenhouse`);
@@ -50,7 +49,7 @@ const GreenhousePage = () => {
       databaseRef,
       (snapshot) => {
         const data = snapshot.val() || {};
-        console.log('Firebase data:', data); // Debug log to verify data structure
+        console.log('Firebase data:', data);
         setSensorData(data);
 
         Animated.timing(fadeAnim, {
@@ -67,14 +66,11 @@ const GreenhousePage = () => {
     return () => unsubscribe();
   }, [uid]);
 
-  // Ensure safe access to sensor data with fallback values
   const pH = typeof sensorData.ph === 'number' ? sensorData.ph : 7.0;
   const temperature = typeof sensorData.temperature === 'number' ? sensorData.temperature : 0;
   const humidity = typeof sensorData.humidity === 'number' ? sensorData.humidity : 0;
 
-  const isSystemSafe = pH >= 6.5 && pH <= 7.5;
-  const isTempCritical = temperature < 15 || temperature > 30;
-  const isHumidityCritical = humidity < 40 || humidity > 80;
+  const isSystemSafe = pH >= 6.5 && pH <= 7.5 && temperature >= 15 && temperature <= 30 && humidity >= 40 && humidity <= 80;
 
   const renderSensorRow = (icon, label, value, unit = '', criticalCondition = false) => {
     const safeValue = value != null && typeof value !== 'object' ? value.toString() : '--';
@@ -108,7 +104,7 @@ const GreenhousePage = () => {
             <Icon
               name="warning"
               size={wp(4)}
-              color="#FF5252"
+              color="#FFCA28"
               style={styles.warningIcon}
             />
           )}
@@ -117,20 +113,20 @@ const GreenhousePage = () => {
     );
   };
 
-  const renderNavigationBox = ({ title, icon, onPress, color, description }) => (
+  const renderNavigationBox = ({ title, icon, onPress, colors, description }) => (
     <TouchableOpacity
       onPress={() => {
-        console.log(`Navigating to ${title}`); // Log pour déboguer les clics
+        console.log(`Navigating to ${title}`);
         try {
           onPress();
         } catch (error) {
-          console.error(`Navigation error to ${title}:`, error); // Capture des erreurs de navigation
+          console.error(`Navigation error to ${title}:`, error);
         }
       }}
       activeOpacity={0.7}
     >
       <LinearGradient
-        colors={[color, `${color}DD`]}
+        colors={colors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.navigationBox}
@@ -163,36 +159,15 @@ const GreenhousePage = () => {
   };
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
+    <AppBackground>
       <SafeAreaView style={styles.container}>
-        <LinearGradient
-          colors={['#4CAF50', '#2E7D32']}
-          style={styles.appBar}
-        >
-          <View style={styles.appBarGradient}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <View style={styles.iconBackground}>
-                <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
-            <View style={styles.titleContainer}>
-              <Icon
-                name="local-florist"
-                size={wp(6)}
-                color="#FFFFFF"
-                style={styles.titleIcon}
-              />
-              <Text style={styles.appBarTitle}>Greenhouse</Text>
-            </View>
-           
-          </View>
-        </LinearGradient>
-        <ScrollView style={styles.content}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Icon name="arrow-back" size={wp(6)} color="#000000" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Greenhouse</Text>
           <LinearGradient
-            colors={isSystemSafe ? ['#4CAF50', '#2E7D32'] : ['#FF5252', '#B71C1C']}
+            colors={isSystemSafe ? ['#A5D6A7', '#66BB6A'] : ['#EF9A9A', '#F44336']}
             style={styles.statusCard}
           >
             <View style={styles.statusGradient}>
@@ -206,7 +181,7 @@ const GreenhousePage = () => {
                 </View>
                 <View style={styles.statusTextContainer}>
                   <Text style={styles.statusTitle}>System Status</Text>
-                  <Text style={styles.statusMessage}>
+                  <Text style={[styles.statusMessage, !isSystemSafe && styles.warningMessage]}>
                     {getSystemStatusMessage()}
                   </Text>
                 </View>
@@ -225,7 +200,7 @@ const GreenhousePage = () => {
                     'Temperature',
                     temperature,
                     '°C',
-                    isTempCritical
+                    temperature < 15 || temperature > 30
                   )}
                 </View>
                 <View style={styles.sensorColumn}>
@@ -234,7 +209,7 @@ const GreenhousePage = () => {
                     'Humidity',
                     humidity,
                     '%',
-                    isHumidityCritical
+                    humidity < 40 || humidity > 80
                   )}
                 </View>
               </View>
@@ -243,22 +218,22 @@ const GreenhousePage = () => {
           {renderNavigationBox({
             title: 'Environment',
             icon: 'thermostat',
-            onPress: () => navigation.navigate('EnvironmentPage'), // Corrigé
-            color: '#4CAF50',
+            onPress: () => navigation.navigate('EnvironmentPage'),
+            colors: ['#A5D6A7', '#66BB6A'],
             description: 'Monitor temperature and humidity',
           })}
           {renderNavigationBox({
             title: 'Reservoir',
             icon: 'water-drop',
-            onPress: () => navigation.navigate('ReservoirPage'), // Corrigé
-            color: '#2196F3',
-            description: 'Check water level and pH',
+            onPress: () => navigation.navigate('ReservoirPage'),
+            colors: ['#81D4FA', '#42A5F5'],
+            description: 'Check water level, pH and EC',
           })}
           {renderNavigationBox({
             title: 'Controls',
             icon: 'tune',
             onPress: () => navigation.navigate('Controls'),
-            color: '#FF9800',
+            colors: ['#FFE082', '#FFB300'],
             description: 'Manage system actuators',
           })}
           <Text style={styles.lastUpdated}>
@@ -266,71 +241,32 @@ const GreenhousePage = () => {
           </Text>
         </ScrollView>
       </SafeAreaView>
-    </LinearGradient>
+    </AppBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
-  appBar: {
-    overflow: 'hidden',
-    borderBottomLeftRadius: wp(5),
-    borderBottomRightRadius: wp(5),
-    ...Platform.select({
-      android: {
-        elevation: 8,
-      },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 6,
-      },
-    }),
-  },
-  appBarGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: hp(2),
-    paddingHorizontal: wp(4),
-  },
-  iconBackground: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: wp(5),
-    padding: wp(2),
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+  content: {
+    padding: wp(4),
+    paddingBottom: hp(5),
   },
   backButton: {
-    marginRight: wp(2),
+    position: 'absolute',
+    top: hp(2),
+    left: wp(4),
+    zIndex: 1,
   },
-  menuButton: {
-    marginLeft: wp(2),
-  },
-  titleContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleIcon: {
-    marginRight: wp(2),
-  },
-  appBarTitle: {
-    fontSize: wp(5),
+  title: {
+    fontSize: wp(7),
     fontWeight: '600',
-    color: '#FFFFFF',
-    letterSpacing: 0.5,
-  },
-  content: {
-    flex: 1,
-    padding: wp(4),
+    color: '#000000',
+    textAlign: 'center',
+    marginBottom: hp(2),
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
   },
   statusCard: {
     width: '100%',
@@ -380,9 +316,12 @@ const styles = StyleSheet.create({
     marginBottom: hp(0.5),
   },
   statusMessage: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#FFFFFF',
     fontSize: wp(4),
     fontWeight: '500',
+  },
+  warningMessage: {
+    color: '#FFCA28',
   },
   sensorGrid: {
     flexDirection: 'row',
@@ -391,13 +330,6 @@ const styles = StyleSheet.create({
   },
   sensorColumn: {
     width: '48%',
-  },
-  gaugeContainer: {
-    alignItems: 'center',
-    marginBottom: hp(2),
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: wp(10),
-    padding: wp(2),
   },
   sensorRow: {
     flexDirection: 'row',
@@ -417,7 +349,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   criticalIconContainer: {
-    backgroundColor: '#FF5252',
+    backgroundColor: '#F44336',
   },
   sensorLabel: {
     color: '#FFFFFF',
@@ -438,8 +370,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   criticalValue: {
-    color: '#FFEB3B',
-    fontWeight: '800',
+    color: '#FFCA28',
   },
   warningIcon: {
     marginLeft: wp(1),

@@ -6,15 +6,17 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getDatabase, ref, onValue, set } from 'firebase/database';
-import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Ajout de l'importation manquante
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { useNavigation } from '@react-navigation/native';
 import * as Animatable from 'react-native-animatable';
+import AppBackground from '../AppBackground';
 
 const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged, isLocked }) => {
   const getIcon = (name) => {
@@ -61,7 +63,7 @@ const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged,
               style={[
                 styles.actuatorTitle,
                 switchValue && styles.actuatorTitleActive,
-                isLocked && styles.actuatorTitleLocked,
+                isLocked && styles.actuatorTitleLocked
               ]}
             >
               {actuatorName.replace('_', ' ')}
@@ -177,16 +179,18 @@ const ControlsScreen = () => {
 
   const database = getDatabase(app);
 
-  // Récupérer UID utilisateur
   useEffect(() => {
     const auth = getAuth(app);
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      setUid(currentUser.uid);
-    }
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUid(user.uid);
+      } else {
+        console.warn('No user logged in');
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
-  // Fetch données utilisateur
   useEffect(() => {
     if (!uid) return;
 
@@ -195,7 +199,7 @@ const ControlsScreen = () => {
       controlsRef,
       (snapshot) => {
         const data = snapshot.val() || {};
-        console.log('Firebase data:', data); // Debug pour vérifier les données
+        console.log('Firebase data:', data);
         setActuatorStates({
           water_pump: data.water_pump === 'ON',
           ventilation: data.ventilation === 'ON',
@@ -242,29 +246,26 @@ const ControlsScreen = () => {
   };
 
   return (
-    <LinearGradient colors={['#f5f7fa', '#e4f5e8']} style={styles.background}>
+    <AppBackground>
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
+        <ScrollView contentContainerStyle={styles.content}>
+          <LinearGradient
+            colors={['#E8F5E9', '#C8E6C9']}
+            style={styles.headerContainer}
           >
-            <Icon name="arrow-back" size={wp(6)} color="#2E7D32" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Control Panel</Text>
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <Icon name="arrow-back" size={wp(6)} color="#1B5E20" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Control Panel</Text>
+          </LinearGradient>
           <Text style={styles.sectionTitle}>Control Mode</Text>
           <ControlModeSwitch
             isAutomatic={isAutomatic}
             onToggle={toggleControlMode}
           />
-
           <Text style={[styles.sectionTitle, styles.actuatorsSectionTitle]}>
             System Controls
           </Text>
-
           <ActuatorCard
             actuatorName="water_pump"
             value={actuatorStates.water_pump ? 'ON' : 'OFF'}
@@ -291,37 +292,51 @@ const ControlsScreen = () => {
           />
         </ScrollView>
       </SafeAreaView>
-    </LinearGradient>
+    </AppBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  content: {
     padding: wp(4),
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingBottom: hp(5),
+  },
+  headerContainer: {
+    paddingTop: hp(2),
+    paddingBottom: hp(2),
+    paddingHorizontal: wp(4),
+    marginBottom: hp(2),
+    borderBottomLeftRadius: wp(3),
+    borderBottomRightRadius: wp(3),
+    ...Platform.select({
+      android: {
+        elevation: 3,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
   },
   backButton: {
-    padding: wp(2),
+    position: 'absolute',
+    top: hp(2),
+    left: wp(4),
+    zIndex: 1,
   },
   title: {
-    fontSize: wp(5),
-    fontWeight: 'bold',
-    color: '#2E7D32',
-    marginLeft: wp(4),
-  },
-  content: {
-    flex: 1,
-    padding: wp(4),
+    fontSize: wp(7),
+    fontWeight: '600',
+    color: '#1B5E20',
+    textAlign: 'center',
+    marginBottom: hp(2),
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
   },
   sectionTitle: {
     fontSize: wp(4.5),

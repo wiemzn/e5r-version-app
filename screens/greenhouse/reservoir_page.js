@@ -10,19 +10,19 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getDatabase, ref, onValue } from 'firebase/database';
-import { getAuth, onAuthStateChanged } from 'firebase/auth'; // Ajout de l'importation
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import { LineChart } from 'react-native-chart-kit';
 import SensorCard from './SensorCard';
 import GoogleSheetsService from '../../googlesheetservice';
 import { useNavigation } from '@react-navigation/native';
+import AppBackground from '../AppBackground';
 
 const { width } = Dimensions.get('window');
-const CHART_WIDTH = width * 0.85;
+const CHART_WIDTH = wp(90);
 
 const ReservoirPage = () => {
   const navigation = useNavigation();
@@ -36,7 +36,6 @@ const ReservoirPage = () => {
 
   const database = getDatabase(app);
 
-  // Récupérer l'UID de l'utilisateur connecté
   useEffect(() => {
     const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -59,7 +58,6 @@ const ReservoirPage = () => {
       controlsRef,
       (snapshot) => {
         const data = snapshot.val() || {};
-        console.log('ReservoirPage Firebase data:', data); // Debug
         setSensorData(data);
       },
       (error) => {
@@ -98,13 +96,15 @@ const ReservoirPage = () => {
         return 'pH';
       case 'water_level':
         return '%';
+      case 'ec':
+        return 'mS/cm';
       default:
         return '';
     }
   };
 
   const data = Object.entries(sensorData)
-    .filter(([key]) => ['ph', 'water_level'].includes(key))
+    .filter(([key]) => ['ph', 'water_level', 'ec'].includes(key))
     .map(([key, value]) => ({
       sensorName: key,
       value: value?.toString() || 'N/A',
@@ -126,7 +126,7 @@ const ReservoirPage = () => {
         chart={
           expandedSensor === item.sensorName ? (
             isChartLoading ? (
-              <ActivityIndicator size="small" color="#388E3C" style={styles.chartLoader} />
+              <ActivityIndicator size="small" color="#2E7D32" style={styles.chartLoader} />
             ) : chartPoints.length > 0 ? (
               <View style={styles.chartContainer}>
                 <View style={styles.filterButtons}>
@@ -157,7 +157,7 @@ const ReservoirPage = () => {
                       datasets: [{ data: chartPoints.map((p) => p.y) }],
                     }}
                     width={CHART_WIDTH}
-                    height={250}
+                    height={hp(30)}
                     yAxisInterval={1}
                     chartConfig={{
                       backgroundGradientFrom: '#FFFFFF',
@@ -192,38 +192,25 @@ const ReservoirPage = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={['#E8F5E9', '#E1F5FE']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { zIndex: -1 }]}
-      />
-      <View style={styles.appBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
-        </TouchableOpacity>
-        <View style={styles.titleContainer}>
-          <Icon name="water-drop" size={wp(6)} color="#FFFFFF" style={styles.titleIcon} />
-          <Text style={styles.appBarTitle}>Reservoir</Text>
-        </View>
-        <View style={styles.placeholder} />
-      </View>
-      {Object.keys(sensorData).length === 0 ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#388E3C" />
-          <Text style={styles.loaderText}>Loading reservoir data...</Text>
-        </View>
-      ) : (
+    <AppBackground>
+      <SafeAreaView style={styles.container}>
         <FlatList
           data={data}
           renderItem={renderItem}
           keyExtractor={(item) => item.sensorName}
           contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            <>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                <Icon name="arrow-back" size={wp(6)} color="#000000" />
+              </TouchableOpacity>
+              <Text style={styles.title}>Reservoir</Text>
+            </>
+          }
           showsVerticalScrollIndicator={false}
         />
-      )}
-    </SafeAreaView>
+      </SafeAreaView>
+    </AppBackground>
   );
 };
 
@@ -231,59 +218,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  appBar: {
-    backgroundColor: '#388E3C',
-    paddingVertical: hp(2),
-    paddingHorizontal: wp(4),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    elevation: 4,
-  },
-  backButton: {
-    padding: wp(1),
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleIcon: {
-    marginRight: wp(2),
-  },
-  appBarTitle: {
-    fontSize: wp(6),
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  placeholder: {
-    width: wp(8),
-  },
   content: {
     padding: wp(4),
   },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  backButton: {
+    position: 'absolute',
+    top: hp(2),
+    left: wp(4),
+    zIndex: 1,
   },
-  loaderText: {
-    marginTop: hp(2),
-    color: '#388E3C',
-    fontSize: wp(4),
-    fontWeight: '500',
-  },
-  chartLoader: {
-    marginVertical: hp(2),
+  title: {
+    fontSize: wp(7),
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
+    marginBottom: hp(2),
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
   },
   chartContainer: {
     marginTop: hp(2),
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: wp(3),
+    padding: wp(4),
   },
   chartWrapper: {
     marginTop: hp(1),
   },
   chart: {
-    marginVertical: 8,
+    marginVertical: hp(1),
     borderRadius: wp(3),
   },
   filterButtons: {
@@ -298,7 +261,7 @@ const styles = StyleSheet.create({
     borderRadius: wp(2),
   },
   filterButtonActive: {
-    backgroundColor: '#388E3C',
+    backgroundColor: '#1B5E20',
   },
   filterButtonText: {
     fontSize: wp(3.5),

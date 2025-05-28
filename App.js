@@ -13,6 +13,8 @@ import SignInScreen from './screens/logging/SignInScreen';
 import SignUpScreen from './screens/logging/SignUpScreen';
 import ForgotPasswordScreen from './screens/logging/ForgotPassword';
 import { auth } from './firebaseConfig';
+import { Platform } from 'react-native';
+
 import { onAuthStateChanged } from 'firebase/auth'; 
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';

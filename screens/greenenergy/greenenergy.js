@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { LineChart } from 'react-native-chart-kit';
 import { getDatabase, ref, onValue } from 'firebase/database';
@@ -15,6 +15,11 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
+import AppBackground from '../AppBackground';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const { width } = Dimensions.get('window');
+const CHART_WIDTH = wp(90) - wp(8); // Ajusté pour prendre en compte le padding de chartCard
 
 const GreenEnergyPage = () => {
   const [energyData, setEnergyData] = useState({});
@@ -28,7 +33,7 @@ const GreenEnergyPage = () => {
       if (user) {
         setUid(user.uid);
       } else {
-        console.warn('Utilisateur non connecté.');
+        console.warn('User not logged in.');
         setUid(null);
       }
     });
@@ -44,7 +49,6 @@ const GreenEnergyPage = () => {
       energyRef,
       (snapshot) => {
         const data = snapshot.val() || {};
-        console.log('Firebase energyData:', data);
         setEnergyData(data);
       },
       (error) => {
@@ -60,7 +64,7 @@ const GreenEnergyPage = () => {
   const storedEnergy = energyData.stored_energy != null ? Number(energyData.stored_energy) : 0.0;
 
   const buildStatCard = (label, value, unit, icon, color) => (
-    <View style={[styles.card, { backgroundColor: `${color}22` }]}>
+    <View style={styles.card}>
       <View style={[styles.iconContainer, { backgroundColor: `${color}33` }]}>
         <Icon name={icon} size={wp(7)} color={color} />
       </View>
@@ -73,17 +77,17 @@ const GreenEnergyPage = () => {
 
   const buildEnergyProductionChart = () => (
     <View style={styles.chartCard}>
-      <Text style={styles.chartTitle}>Production du jour</Text>
+      <Text style={styles.chartTitle}>Daily Production</Text>
       <LineChart
         data={{
           labels: ['00:00', '06:00', '12:00', '18:00', '23:59'],
           datasets: [{ data: [0, 5, 15, 10, 8] }],
         }}
-        width={wp(90)}
-        height={hp(25)}
+        width={CHART_WIDTH}
+        height={hp(25)} // Réduit pour meilleure adaptation
         chartConfig={{
-          backgroundGradientFrom: '#f5f5f5',
-          backgroundGradientTo: '#f5f5f5',
+          backgroundGradientFrom: '#FFFFFF',
+          backgroundGradientTo: '#FFFFFF',
           decimalPlaces: 1,
           color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
           labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
@@ -98,83 +102,81 @@ const GreenEnergyPage = () => {
         }}
         bezier
         style={styles.chart}
+        withVerticalLabels={true}
+        withHorizontalLabels={true}
+        fromZero={true}
       />
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.appBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButtonCircle}>
-          <Icon name="arrow-back" size={wp(6)} color="#FFFFFF" />
-        </TouchableOpacity>
-        <View style={styles.appBarCenter}>
-          <Icon name="bolt" size={wp(5)} color="#FFFFFF" style={{ marginRight: wp(1) }} />
-          <Text style={styles.appBarTitle}>Greenenergy</Text>
+    <AppBackground>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+          >
+            <Icon name="arrow-back" size={wp(5)} color="#000000" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Green Energy</Text>
         </View>
-        <View style={{ width: wp(6) }} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.content}>
-        {buildEnergyProductionChart()}
-        <View style={styles.statsContainer}>
-          {buildStatCard('Production du jour', dailyProduction, 'kWh', 'eco', '#4CAF50')} {/* Vert */}
-          {buildStatCard('Énergie utilisée', energyConsumption, 'kWh', 'bolt', '#FF9800')} {/* Orange */}
-          {buildStatCard('Énergie stockée', storedEnergy, 'kWh', 'battery-charging-full', '#03A9F4')} {/* Bleu */}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        <ScrollView contentContainerStyle={styles.content}>
+          {buildEnergyProductionChart()}
+          <View style={styles.statsContainer}>
+            {buildStatCard('Daily Production', dailyProduction, 'kWh', 'eco', '#4CAF50')}
+            {buildStatCard('Energy Consumption', energyConsumption, 'kWh', 'bolt', '#FF9800')}
+            {buildStatCard('Stored Energy', storedEnergy, 'kWh', 'battery-charging-full', '#03A9F4')}
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </AppBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
-  appBar: {
+  header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#388E3C',
-    paddingVertical: hp(2),
-    paddingHorizontal: wp(4),
-    ...Platform.select({
-      android: { elevation: 4 },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-    }),
-  },
-  appBarCenter: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: wp(5),
+    paddingTop: hp(2),
+    paddingBottom: hp(1),
+    backgroundColor: 'transparent',
   },
-  appBarTitle: {
-    fontSize: wp(5),
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+  backButton: {
+    padding: wp(2.5),
   },
-  backButtonCircle: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: wp(10),
-    padding: wp(1.5),
-    alignItems: 'center',
-    justifyContent: 'center',
+  title: {
+    fontSize: wp(7),
+    fontWeight: '600',
+    color: '#000000',
+    textAlign: 'center',
+    flex: 1,
+    fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
+    fontStyle: 'italic',
+  },
+  subtitle: {
+    fontSize: wp(4),
+    color: '#555555',
+    textAlign: 'center',
+    marginBottom: hp(2),
   },
   content: {
-    padding: wp(4),
+    padding: wp(5),
     paddingBottom: hp(5),
   },
   chartCard: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: wp(3),
     marginBottom: hp(2),
     padding: wp(4),
+    overflow: 'hidden', // Ajouté pour éviter le débordement
+    alignSelf: 'center', // Centrer le conteneur
+    width: wp(90), // Largeur fixe pour correspondre à CHART_WIDTH + padding
     ...Platform.select({
       android: { elevation: 3 },
       ios: {
@@ -190,9 +192,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333333',
     marginBottom: hp(2),
+    textAlign: 'center',
   },
   chart: {
-    borderRadius: wp(4),
+    borderRadius: wp(3),
+    alignSelf: 'center', // Centrer le graphique
   },
   statsContainer: {
     flexDirection: 'column',
@@ -200,6 +204,7 @@ const styles = StyleSheet.create({
   },
   card: {
     flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: wp(3),
     marginVertical: hp(1),
     padding: wp(4),
@@ -226,8 +231,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardLabel: {
-    fontSize: wp(3.5),
+    fontSize: wp(4),
     color: '#555555',
+    fontWeight: '500',
   },
   cardValue: {
     fontSize: wp(5),
