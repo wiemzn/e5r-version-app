@@ -27,6 +27,8 @@ const ActuatorCard = ({ actuatorName, value, unit, switchValue, onSwitchChanged,
         return 'air';
       case 'led':
         return 'lightbulb';
+      case 'air_pump':
+        return 'air';
       default:
         return 'tune';
     }
@@ -173,6 +175,7 @@ const ControlsScreen = () => {
     water_pump: false,
     ventilation: false,
     led: false,
+    air_pump: false,
   });
   const [isAutomatic, setIsAutomatic] = useState(false);
   const [uid, setUid] = useState(null);
@@ -204,6 +207,7 @@ const ControlsScreen = () => {
           water_pump: data.water_pump === 'ON',
           ventilation: data.ventilation === 'ON',
           led: data.led === 'ON',
+          air_pump: data.air_pump === 'ON',
         });
         setIsAutomatic(data.control_mode === 'AUTO');
       },
@@ -248,16 +252,13 @@ const ControlsScreen = () => {
   return (
     <AppBackground>
       <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Icon name="arrow-back" size={wp(6)} color="#000000" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Control Panel</Text>
+        </View>
         <ScrollView contentContainerStyle={styles.content}>
-          <LinearGradient
-            colors={['#E8F5E9', '#C8E6C9']}
-            style={styles.headerContainer}
-          >
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <Icon name="arrow-back" size={wp(6)} color="#1B5E20" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Control Panel</Text>
-          </LinearGradient>
           <Text style={styles.sectionTitle}>Control Mode</Text>
           <ControlModeSwitch
             isAutomatic={isAutomatic}
@@ -290,6 +291,14 @@ const ControlsScreen = () => {
             onSwitchChanged={(value) => toggleActuator('led', value)}
             isLocked={isAutomatic}
           />
+          <ActuatorCard
+            actuatorName="air_pump"
+            value={actuatorStates.air_pump ? 'ON' : 'OFF'}
+            unit=""
+            switchValue={actuatorStates.air_pump}
+            onSwitchChanged={(value) => toggleActuator('air_pump', value)}
+            isLocked={isAutomatic}
+          />
         </ScrollView>
       </SafeAreaView>
     </AppBackground>
@@ -300,43 +309,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    padding: wp(4),
-    paddingBottom: hp(5),
-  },
-  headerContainer: {
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingTop: hp(2),
-    paddingBottom: hp(2),
     paddingHorizontal: wp(4),
     marginBottom: hp(2),
-    borderBottomLeftRadius: wp(3),
-    borderBottomRightRadius: wp(3),
-    ...Platform.select({
-      android: {
-        elevation: 3,
-      },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-    }),
   },
   backButton: {
     position: 'absolute',
-    top: hp(2),
     left: wp(4),
-    zIndex: 1,
   },
   title: {
     fontSize: wp(7),
     fontWeight: '600',
-    color: '#1B5E20',
+    color: '#000000',
     textAlign: 'center',
-    marginBottom: hp(2),
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
+  },
+  content: {
+    padding: wp(4),
+    paddingBottom: hp(5),
   },
   sectionTitle: {
     fontSize: wp(4.5),
