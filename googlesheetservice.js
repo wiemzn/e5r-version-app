@@ -6,7 +6,10 @@ const GoogleSheetsService = {
     const url =
       'https://docs.google.com/spreadsheets/d/e/2PACX-1vSde4l6DpjFKKuGFJ54jziiC9flPCdg726BLuHubS-xteC_Lf0IqmFmT0Ck8tw-UdV9JwoXNlYYEtcd/pub?gid=0&single=true&output=csv';
     
-    const chartData = {};
+    const chartData = {
+      daily: {},
+      weekly: {}
+    };
 
     try {
       const response = await axios.get(url);
@@ -16,8 +19,19 @@ const GoogleSheetsService = {
           header: false,
         }).data;
 
+        // Get today's date at midnight for comparison
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Get date 7 days ago at midnight
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        const dailyData = {};
+        const weeklyDataByDay = {};
+
         for (const row of csvData.slice(1)) {
-          const sensorName = row[0]?.toString();
+          const sensorName = row[0]?.toString().toLowerCase();
           const date = row[1]?.toString(); // Format: DD/MM/YYYY
           const time = row[2]?.toString(); // Format: HH:MM:SS
           const value = row[3]?.toString();
@@ -36,20 +50,58 @@ const GoogleSheetsService = {
           // Parse sensor value to number (handle comma decimal separator)
           const numericValue = parseFloat(value.replace(',', '.'));
 
-          if (!chartData[sensorName]) {
-            chartData[sensorName] = [];
+          // Format for display
+          const formattedTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+          const formattedDate = `${day}/${month}`;
+
+          // Add to daily data if it's from today
+          if (dateTime >= today) {
+            if (!dailyData[sensorName]) {
+              dailyData[sensorName] = [];
+            }
+            dailyData[sensorName].push({
+              x: timeInHours,
+              y: numericValue,
+              originalTime: formattedTime
+            });
           }
 
-          chartData[sensorName].push({
-            x: timeInHours,
-            y: numericValue,
-            originalTime: `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-          });
+          // Add to weekly data if it's from the last 7 days
+          if (dateTime >= weekAgo) {
+            if (!weeklyDataByDay[sensorName]) {
+              weeklyDataByDay[sensorName] = {};
+            }
+            if (!weeklyDataByDay[sensorName][formattedDate]) {
+              weeklyDataByDay[sensorName][formattedDate] = {
+                sum: 0,
+                count: 0,
+                date: formattedDate
+              };
+            }
+            weeklyDataByDay[sensorName][formattedDate].sum += numericValue;
+            weeklyDataByDay[sensorName][formattedDate].count += 1;
+          }
         }
 
-        // Sort data points by time for each sensor
-        for (const sensor in chartData) {
-          chartData[sensor].sort((a, b) => a.x - b.x);
+        // Sort and process daily data
+        for (const sensor in dailyData) {
+          chartData.daily[sensor] = dailyData[sensor].sort((a, b) => a.x - b.x);
+        }
+
+        // Process weekly data - calculate averages
+        for (const sensor in weeklyDataByDay) {
+          chartData.weekly[sensor] = Object.values(weeklyDataByDay[sensor])
+            .map(dayData => ({
+              x: dayData.date,
+              y: dayData.sum / dayData.count, // Calculate average
+              originalTime: dayData.date
+            }))
+            .sort((a, b) => {
+              // Sort by date (DD/MM format)
+              const [aDay, aMonth] = a.x.split('/').map(Number);
+              const [bDay, bMonth] = b.x.split('/').map(Number);
+              return aMonth === bMonth ? aDay - bDay : aMonth - bMonth;
+            });
         }
       } else {
         throw new Error('Failed to load chart data');
@@ -62,14 +114,18 @@ const GoogleSheetsService = {
   },
 
   filterDataByRange(chartData, range = 'day') {
-    return chartData;
+    if (!chartData) return null;
+    const data = range === 'day' ? chartData.daily : chartData.weekly;
+    
+    // Ensure we have valid data for the selected range
+    if (!data) return null;
+    
+    return data;
   },
 
-  formatXAxisLabel(timeInHours) {
-    // Convert decimal hours back to HH:MM format
-    const hours = Math.floor(timeInHours);
-    const minutes = Math.round((timeInHours - hours) * 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  formatXAxisLabel(value, range = 'day') {
+    // Return the value as is since we're now handling the formatting during data processing
+    return value;
   }
 };
 

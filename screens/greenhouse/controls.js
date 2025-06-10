@@ -209,7 +209,7 @@ const ControlsScreen = () => {
           led: data.led === 'ON',
           air_pump: data.air_pump === 'ON',
         });
-        setIsAutomatic(data.control_mode === 'AUTO');
+        setIsAutomatic(data.control_mode === 'automatic');
       },
       (error) => {
         console.error('Firebase error:', error);
@@ -241,7 +241,7 @@ const ControlsScreen = () => {
       const newMode = !isAutomatic;
       await set(
         ref(database, `users/${uid}/greenhouse/control_mode`),
-        newMode ? 'AUTO' : 'MANUAL'
+        newMode ? 'automatic' : 'manual'
       );
       setIsAutomatic(newMode);
     } catch (error) {

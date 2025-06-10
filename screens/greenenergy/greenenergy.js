@@ -7,23 +7,25 @@ import {
   TouchableOpacity,
   Platform,
   Dimensions,
+  Animated,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { LineChart } from 'react-native-chart-kit';
 import { getDatabase, ref, onValue } from 'firebase/database';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
-import { useNavigation } from '@react-navigation/native';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
-import AppBackground from '../AppBackground';
+import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AppBackground from '../AppBackground';
+import GreenEnergyCharts from './GreenEnergyCharts';
 
 const { width } = Dimensions.get('window');
-const CHART_WIDTH = wp(90) - wp(8); // Ajusté pour prendre en compte le padding de chartCard
 
 const GreenEnergyPage = () => {
   const [energyData, setEnergyData] = useState({});
   const [uid, setUid] = useState(null);
+  const [showCharts, setShowCharts] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
   const database = getDatabase(app);
   const navigation = useNavigation();
 
@@ -59,75 +61,88 @@ const GreenEnergyPage = () => {
     return () => unsubscribe();
   }, [uid]);
 
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: showCharts ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [showCharts]);
+
   const dailyProduction = energyData.daily_production != null ? Number(energyData.daily_production) : 0.0;
-  const energyConsumption = energyData.energy_consumption != null ? Number(energyData.energy_consumption) : 0.0;
+  const energyConsumption = energyData.energy_consumed != null ? Number(energyData.energy_consumed) : 0.0;
   const storedEnergy = energyData.stored_energy != null ? Number(energyData.stored_energy) : 0.0;
-
-  const buildStatCard = (label, value, unit, icon, color) => (
-    <View style={styles.card}>
-      <View style={[styles.iconContainer, { backgroundColor: `${color}33` }]}>
-        <Icon name={icon} size={wp(7)} color={color} />
-      </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardLabel}>{label}</Text>
-        <Text style={[styles.cardValue, { color }]}>{value != null ? `${value} ${unit}` : '--'}</Text>
-      </View>
-    </View>
-  );
-
-  const buildEnergyProductionChart = () => (
-    <View style={styles.chartCard}>
-      <Text style={styles.chartTitle}>Daily Production</Text>
-      <LineChart
-        data={{
-          labels: ['00:00', '06:00', '12:00', '18:00', '23:59'],
-          datasets: [{ data: [0, 5, 15, 10, 8] }],
-        }}
-        width={CHART_WIDTH}
-        height={hp(25)} // Réduit pour meilleure adaptation
-        chartConfig={{
-          backgroundGradientFrom: '#FFFFFF',
-          backgroundGradientTo: '#FFFFFF',
-          decimalPlaces: 1,
-          color: (opacity = 1) => `rgba(76, 175, 80, ${opacity})`,
-          labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-          style: {
-            borderRadius: wp(3),
-          },
-          propsForDots: {
-            r: '4',
-            strokeWidth: '2',
-            stroke: '#4CAF50',
-          },
-        }}
-        bezier
-        style={styles.chart}
-        withVerticalLabels={true}
-        withHorizontalLabels={true}
-        fromZero={true}
-      />
-    </View>
-  );
 
   return (
     <AppBackground>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <Icon name="arrow-back" size={wp(5)} color="#000000" />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Icon name="arrow-back" size={wp(6)} color="#000000" />
           </TouchableOpacity>
           <Text style={styles.title}>Green Energy</Text>
+          <TouchableOpacity 
+            style={styles.chartToggle}
+            onPress={() => setShowCharts(!showCharts)}
+          >
+            <View style={[styles.iconContainer, showCharts && styles.iconContainerActive]}>
+              <Icon 
+                name={showCharts ? "insert-chart" : "show-chart"} 
+                size={wp(6)} 
+                color={showCharts ? "#FFFFFF" : "#2E7D32"} 
+              />
+            </View>
+          </TouchableOpacity>
         </View>
-        <ScrollView contentContainerStyle={styles.content}>
-          {buildEnergyProductionChart()}
+        <ScrollView style={styles.content}>
           <View style={styles.statsContainer}>
-            {buildStatCard('Daily Production', dailyProduction, 'kWh', 'eco', '#4CAF50')}
-            {buildStatCard('Energy Consumption', energyConsumption, 'kWh', 'bolt', '#FF9800')}
-            {buildStatCard('Stored Energy', storedEnergy, 'kWh', 'battery-charging-full', '#03A9F4')}
+            <View style={styles.card}>
+              <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="wb-sunny" size={wp(6)} color="#2E7D32" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardLabel}>Daily Production</Text>
+                <Text style={styles.cardValue}>{dailyProduction.toFixed(2)} kWh</Text>
+              </View>
+            </View>
+
+            <View style={styles.card}>
+              <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="power" size={wp(6)} color="#2E7D32" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardLabel}>Energy Consumed</Text>
+                <Text style={styles.cardValue}>{energyConsumption.toFixed(2)} kWh</Text>
+              </View>
+            </View>
+
+            <View style={styles.card}>
+              <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
+                <Icon name="battery-charging-full" size={wp(6)} color="#2E7D32" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardLabel}>Stored Energy</Text>
+                <Text style={styles.cardValue}>{storedEnergy.toFixed(2)} Kw</Text>
+              </View>
+            </View>
           </View>
+          
+          <Animated.View 
+            style={[
+              styles.chartsSection,
+              { 
+                opacity: fadeAnim,
+                transform: [{
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                }],
+              },
+            ]}
+          >
+            {showCharts && <GreenEnergyCharts />}
+          </Animated.View>
         </ScrollView>
       </SafeAreaView>
     </AppBackground>
@@ -137,6 +152,9 @@ const GreenEnergyPage = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  content: {
+    padding: wp(4),
   },
   header: {
     flexDirection: 'row',
@@ -159,44 +177,30 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
   },
-  subtitle: {
-    fontSize: wp(4),
-    color: '#555555',
-    textAlign: 'center',
-    marginBottom: hp(2),
+  chartToggle: {
+    padding: wp(2),
   },
-  content: {
-    padding: wp(5),
-    paddingBottom: hp(5),
-  },
-  chartCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: wp(3),
-    marginBottom: hp(2),
-    padding: wp(4),
-    overflow: 'hidden', // Ajouté pour éviter le débordement
-    alignSelf: 'center', // Centrer le conteneur
-    width: wp(90), // Largeur fixe pour correspondre à CHART_WIDTH + padding
+  iconContainer: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: wp(6),
+    width: wp(12),
+    height: wp(12),
+    justifyContent: 'center',
+    alignItems: 'center',
     ...Platform.select({
-      android: { elevation: 3 },
       ios: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
       },
+      android: {
+        elevation: 2,
+      },
     }),
   },
-  chartTitle: {
-    fontSize: wp(5),
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: hp(2),
-    textAlign: 'center',
-  },
-  chart: {
-    borderRadius: wp(3),
-    alignSelf: 'center', // Centrer le graphique
+  iconContainerActive: {
+    backgroundColor: '#2E7D32',
   },
   statsContainer: {
     flexDirection: 'column',
@@ -237,8 +241,13 @@ const styles = StyleSheet.create({
   },
   cardValue: {
     fontSize: wp(5),
+    color: '#000000',
     fontWeight: 'bold',
     marginTop: hp(0.5),
+  },
+  chartsSection: {
+    marginTop: hp(2),
+    overflow: 'hidden',
   },
 });
 

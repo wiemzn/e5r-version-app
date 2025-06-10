@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
@@ -8,9 +8,6 @@ const SensorCard = ({
   sensorName = 'Unknown',
   value = 'N/A',
   unit = '',
-  isExpanded = false,
-  onToggle = () => {},
-  chart = null
 }) => {
   const getIcon = (name) => {
     const sensor = name?.toLowerCase?.(); // Safe check
@@ -35,23 +32,17 @@ const SensorCard = ({
       end={{ x: 1, y: 1 }}
       style={styles.card}
     >
-      {/* Touchable only on the header */}
-      <TouchableOpacity onPress={onToggle} activeOpacity={0.7}>
-        <View style={styles.header}>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
           <Icon name={getIcon(sensorName)} size={wp(6)} color="#FFFFFF" />
           <Text style={styles.name}>{sensorName}</Text>
+        </View>
+        <View style={styles.headerRight}>
           <Text style={styles.value}>
             {value} {unit}
           </Text>
         </View>
-      </TouchableOpacity>
-
-      {/* Chart or extra content should be freely touchable */}
-      {isExpanded && chart && (
-        <View style={styles.chartContainer}>
-          {chart}
-        </View>
-      )}
+      </View>
     </LinearGradient>
   );
 };
@@ -76,21 +67,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   name: {
     fontSize: wp(4.5),
     fontWeight: 'bold',
     color: '#FFFFFF',
-    flex: 1,
     marginLeft: wp(3),
   },
   value: {
     fontSize: wp(4.5),
     fontWeight: '500',
     color: '#FFFFFF',
-  },
-  chartContainer: {
-    marginTop: hp(2),
-    alignItems: 'center',
+    marginRight: wp(2),
   },
 });
 

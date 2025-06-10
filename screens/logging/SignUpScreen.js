@@ -117,7 +117,7 @@ const SignUpScreen = () => {
 
         await signOut(auth);
         setIsLoading(false);
-        navigation.replace('SignInScreen');
+        navigation.navigate('SignInScreen');
 
         Alert.alert('Success', 'Registration successful! Please wait for approval.');
       } catch (firestoreError) {
