@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Platform,
-  Dimensions,
   ScrollView,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
@@ -14,13 +13,33 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import GoogleSheetsService from '../../googlesheetservice';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const { width } = Dimensions.get('window');
-const CHART_WIDTH = wp(90);
+const CHART_WIDTH = wp(72);
 
 const SENSORS = [
-  { id: 'ph', name: 'pH Readings', unit: '', color: '#2E7D32' },
-  { id: 'ec', name: 'EC Readings', unit: 'mS/cm', color: '#1976D2' },
-  { id: 'water_level', name: 'Water Level', unit: '%', color: '#7B1FA2' },
+  {
+    id: 'ph',
+    name: 'pH Readings',
+    unit: '',
+    color: '#2E7D32',
+    icon: 'science',
+    gradientColors: ['#E8F5E9', '#C8E6C9'],
+  },
+  {
+    id: 'ec',
+    name: 'EC Readings',
+    unit: 'mS/cm',
+    color: '#1976D2',
+    icon: 'bolt',
+    gradientColors: ['#E3F2FD', '#BBDEFB'],
+  },
+  {
+    id: 'water_level',
+    name: 'Water Level',
+    unit: '%',
+    color: '#7B1FA2',
+    icon: 'opacity',
+    gradientColors: ['#F3E5F5', '#E1BEE7'],
+  },
 ];
 
 const ReservoirCharts = () => {
@@ -45,80 +64,78 @@ const ReservoirCharts = () => {
   }, []);
 
   useEffect(() => {
-    console.log('Range changed to:', selectedRange);
-    setChartData(prevData => ({...prevData}));
+    setChartData(prev => ({ ...prev }));
   }, [selectedRange]);
 
   const formatData = (sensorId) => {
-    if (!chartData) {
-      return {
-        labels: [],
-        datasets: [{ data: [] }]
-      };
-    }
-
+    if (!chartData) return { labels: [], datasets: [{ data: [] }] };
     const filteredData = GoogleSheetsService.filterDataByRange(chartData, selectedRange);
     const sensorData = filteredData?.[sensorId] || [];
-
-    if (sensorData.length === 0) {
-      return {
-        labels: [],
-        datasets: [{ data: [] }]
-      };
-    }
-
-    const labels = sensorData.map(point => point.originalTime);
-    const dataPoints = sensorData.map(point => point.y);
-
+    const labels = sensorData.map(p => p.originalTime);
+    const dataPoints = sensorData.map(p => parseFloat(p.y) || 0);
     return {
       labels,
       datasets: [{
         data: dataPoints,
-        color: (opacity = 1) => `${SENSORS.find(s => s.id === sensorId).color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
-        strokeWidth: 2
-      }]
+        color: (opacity = 1) =>
+          `${SENSORS.find(s => s.id === sensorId).color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
+        strokeWidth: 2,
+      }],
     };
   };
 
   const renderChart = (sensor) => {
     const data = formatData(sensor.id);
-    
+    const currentValue = chartData?.[sensor.id]?.[chartData[sensor.id].length - 1]?.y?.toString() || 'N/A';
+
     return (
       <View key={sensor.id} style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>{sensor.name}</Text>
+        <View style={styles.chartHeader}>
+          <View style={styles.chartTitleContainer}>
+            <View style={[styles.iconContainer, { backgroundColor: sensor.gradientColors[1] }]}>
+              <Icon name={sensor.icon} size={wp(6)} color={sensor.color} />
+            </View>
+            <Text style={styles.chartTitle}>{sensor.name}</Text>
+          </View>
+          <Text style={[styles.currentValue, { color: sensor.color }]}>
+            {currentValue} <Text style={styles.unit}>{sensor.unit}</Text>
+          </Text>
+        </View>
+
         {data.datasets[0].data.length > 0 ? (
           <>
-            <LineChart
-              data={data}
-              width={CHART_WIDTH}
-              height={hp(30)}
-              chartConfig={{
-                backgroundColor: '#FFFFFF',
-                backgroundGradientFrom: '#FFFFFF',
-                backgroundGradientTo: '#FFFFFF',
-                decimalPlaces: sensor.id === 'water_level' ? 0 : 1,
-                color: (opacity = 1) => `${sensor.color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
-                labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                style: {
-                  borderRadius: wp(3),
-                },
-                propsForDots: {
-                  r: '4',
-                  strokeWidth: '2',
-                  stroke: sensor.color,
-                },
-                propsForLabels: {
-                  fontSize: wp(2.5),
-                }
-              }}
-              bezier
-              style={styles.chart}
-              withVerticalLabels={true}
-              withHorizontalLabels={true}
-              fromZero={sensor.id === 'water_level'}
-              yAxisLabel=""
-              yAxisSuffix={sensor.unit}
-            />
+            <View style={[styles.chartBackground, { backgroundColor: sensor.gradientColors[0] }]}>
+              <LineChart
+                data={data}
+                width={CHART_WIDTH}
+                height={hp(30)}
+                chartConfig={{
+                  backgroundColor: '#FFFFFF',
+                  backgroundGradientFrom: sensor.gradientColors[0],
+                  backgroundGradientTo: sensor.gradientColors[1],
+                  decimalPlaces: sensor.id === 'water_level' ? 0 : 1,
+                  color: (opacity = 1) =>
+                    `${sensor.color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity * 0.7})`,
+                  style: { borderRadius: wp(3) },
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: sensor.color,
+                  },
+                  propsForLabels: {
+                    fontSize: wp(2.5),
+                  },
+                }}
+                bezier
+                style={styles.chart}
+                withVerticalLabels
+                withHorizontalLabels
+                fromZero={sensor.id === 'water_level'}
+                yAxisLabel=""
+                yAxisSuffix={sensor.unit}
+              />
+            </View>
             <Text style={styles.chartLabel}>
               {selectedRange === 'day' ? 'Time (HH:MM)' : 'Date (DD/MM)'}
             </Text>
@@ -142,22 +159,20 @@ const ReservoirCharts = () => {
           </TouchableOpacity>
         </View>
         <View style={styles.periodSelector}>
-          <TouchableOpacity
-            style={[styles.periodButton, selectedRange === 'day' && styles.periodButtonActive]}
-            onPress={() => setSelectedRange('day')}
-          >
-            <Text style={[styles.periodButtonText, selectedRange === 'day' && styles.periodButtonTextActive]}>
-              Today
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.periodButton, selectedRange === 'week' && styles.periodButtonActive]}
-            onPress={() => setSelectedRange('week')}
-          >
-            <Text style={[styles.periodButtonText, selectedRange === 'week' && styles.periodButtonTextActive]}>
-              Week
-            </Text>
-          </TouchableOpacity>
+          {['day', 'week'].map(period => (
+            <TouchableOpacity
+              key={period}
+              style={[styles.periodButton, selectedRange === period && styles.periodButtonActive]}
+              onPress={() => setSelectedRange(period)}
+            >
+              <Text style={[
+                styles.periodButtonText,
+                selectedRange === period && styles.periodButtonTextActive
+              ]}>
+                {period === 'day' ? 'Today' : 'Week'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -171,15 +186,9 @@ const ReservoirCharts = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: wp(4),
-  },
-  header: {
-    marginBottom: hp(3),
-  },
+  container: { flex: 1, backgroundColor: 'transparent' }, // Changed to transparent
+  contentContainer: { padding: wp(4), paddingBottom: hp(4), backgroundColor: 'transparent' }, // Changed to transparent
+  header: { marginBottom: hp(3) },
   titleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -189,7 +198,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: wp(7),
     fontWeight: '600',
-    color: '#000000',
+    color: '#000',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
   },
@@ -229,7 +238,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: wp(3),
     padding: wp(4),
-    marginBottom: hp(2),
+    marginBottom: hp(3),
+    alignItems: 'center',
     ...Platform.select({
       android: { elevation: 2 },
       ios: {
@@ -240,19 +250,50 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  chartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp(2),
+    width: '100%',
+  },
+  chartTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconContainer: {
+    padding: wp(2),
+    borderRadius: wp(3),
+    marginRight: wp(2),
+  },
   chartTitle: {
+    fontSize: wp(4.5),
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  currentValue: {
     fontSize: wp(5),
     fontWeight: 'bold',
-    color: '#000000',
-    marginBottom: hp(2),
   },
-  loader: {
-    height: hp(30),
-    justifyContent: 'center',
+  unit: {
+    fontSize: wp(3.5),
+    fontWeight: 'normal',
+  },
+  chartBackground: {
+    borderRadius: wp(3),
+    padding: wp(3),
+    marginBottom: hp(1),
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
   chart: {
-    marginVertical: hp(1),
     borderRadius: wp(3),
+  },
+  chartLabel: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: wp(3),
+    marginTop: hp(1),
   },
   noDataContainer: {
     height: hp(30),
@@ -261,15 +302,13 @@ const styles = StyleSheet.create({
   },
   noDataText: {
     fontSize: wp(4),
-    color: '#666666',
+    color: '#666',
     fontStyle: 'italic',
   },
-  chartLabel: {
-    textAlign: 'center',
-    color: '#666666',
-    fontSize: wp(3),
-    marginTop: hp(1),
+  loader: {
+    height: hp(30),
+    justifyContent: 'center',
   },
 });
 
-export default ReservoirCharts; 
+export default ReservoirCharts;

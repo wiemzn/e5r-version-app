@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Platform,
-  Dimensions,
   ScrollView,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
@@ -14,8 +13,8 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import GoogleSheetsService from '../../googlesheetservice';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const { width } = Dimensions.get('window');
-const CHART_WIDTH = width - wp(12);
+const CHART_WIDTH = wp(72); // Responsive width (72% of screen)
+const CHART_HEIGHT = hp(30); // Responsive height
 
 const METRICS = [
   { 
@@ -37,6 +36,7 @@ const GreenEnergyCharts = () => {
     setIsLoading(true);
     try {
       const data = await GoogleSheetsService.fetchChartData();
+      console.log('Fetched chart data:', JSON.stringify(data));
       setChartData(data);
     } catch (error) {
       console.error('Error loading chart data:', error);
@@ -51,43 +51,36 @@ const GreenEnergyCharts = () => {
 
   useEffect(() => {
     console.log('Range changed to:', selectedRange);
-    setChartData(prevData => ({...prevData}));
+    setChartData(prevData => ({ ...prevData }));
   }, [selectedRange]);
 
   const formatData = (metricId) => {
     if (!chartData) {
       return {
         labels: [],
-        datasets: [{ data: [] }]
+        datasets: [{ data: [] }],
       };
     }
 
     const filteredData = GoogleSheetsService.filterDataByRange(chartData, selectedRange);
     const metricData = filteredData?.[metricId] || [];
 
-    if (metricData.length === 0) {
-      return {
-        labels: [],
-        datasets: [{ data: [] }]
-      };
-    }
-
     const labels = metricData.map(point => point.originalTime);
-    const dataPoints = metricData.map(point => point.y);
+    const dataPoints = metricData.map(point => parseFloat(point.y) || 0);
 
     return {
       labels,
       datasets: [{
         data: dataPoints,
         color: (opacity = 1) => `${METRICS.find(m => m.id === metricId).color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
-        strokeWidth: 2
-      }]
+        strokeWidth: 2,
+      }],
     };
   };
 
   const renderChart = (metric) => {
     const data = formatData(metric.id);
-    
+
     return (
       <View key={metric.id} style={styles.chartContainer}>
         <View style={styles.chartHeader}>
@@ -97,6 +90,10 @@ const GreenEnergyCharts = () => {
             </View>
             <Text style={styles.chartTitle}>{metric.name}</Text>
           </View>
+          <Text style={[styles.currentValue, { color: metric.color }]}>
+            {chartData?.[metric.id]?.[chartData[metric.id].length - 1]?.y?.toString() || 'N/A'}{' '}
+            <Text style={styles.unit}>{metric.unit}</Text>
+          </Text>
         </View>
         {data.datasets[0].data.length > 0 ? (
           <>
@@ -104,14 +101,14 @@ const GreenEnergyCharts = () => {
               <LineChart
                 data={data}
                 width={CHART_WIDTH}
-                height={hp(25)}
+                height={CHART_HEIGHT}
                 chartConfig={{
                   backgroundColor: '#FFFFFF',
-                  backgroundGradientFrom: '#FFFFFF',
-                  backgroundGradientTo: '#FFFFFF',
-                  decimalPlaces: 2,
+                  backgroundGradientFrom: metric.gradientColors[0],
+                  backgroundGradientTo: metric.gradientColors[1],
+                  decimalPlaces: 1,
                   color: (opacity = 1) => `${metric.color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity * 0.5})`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity * 0.7})`,
                   style: {
                     borderRadius: wp(3),
                   },
@@ -125,14 +122,12 @@ const GreenEnergyCharts = () => {
                     fontWeight: '500',
                   },
                   propsForBackgroundLines: {
-                    strokeDasharray: '',
+                    strokeDasharray: [5, 5],
                     stroke: `${metric.color}20`,
                   },
-                  fillShadowGradient: metric.color,
-                  fillShadowGradientOpacity: 0.2,
                 }}
                 bezier
-                style={[styles.chart, { backgroundColor: 'white' }]}
+                style={styles.chart}
                 withVerticalLabels={true}
                 withHorizontalLabels={true}
                 withInnerLines={true}
@@ -168,13 +163,17 @@ const GreenEnergyCharts = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Energy Production Chart</Text>
+          <Text numberOfLines={1} style={styles.title}>Energy Production Chart</Text>
           <TouchableOpacity 
             style={styles.refreshButton} 
             onPress={loadChartData}
             activeOpacity={0.7}
           >
-            <Icon name="refresh" size={wp(6)} color="#2E7D32" />
+            <Icon 
+              name="refresh" 
+              size={wp(5)} 
+              color="#2E7D32" 
+            />
           </TouchableOpacity>
         </View>
         <View style={styles.periodSelector}>
@@ -185,7 +184,7 @@ const GreenEnergyCharts = () => {
           >
             <Icon 
               name="today" 
-              size={wp(5)} 
+              size={wp(4)} 
               color={selectedRange === 'day' ? '#FFFFFF' : '#2E7D32'} 
               style={styles.periodIcon}
             />
@@ -200,7 +199,7 @@ const GreenEnergyCharts = () => {
           >
             <Icon 
               name="date-range" 
-              size={wp(5)} 
+              size={wp(4)} 
               color={selectedRange === 'week' ? '#FFFFFF' : '#2E7D32'} 
               style={styles.periodIcon}
             />
@@ -229,9 +228,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: wp(4),
+    paddingBottom: hp(4),
   },
   header: {
     marginBottom: hp(3),
+    zIndex: 1,
   },
   titleContainer: {
     flexDirection: 'row',
@@ -240,41 +241,41 @@ const styles = StyleSheet.create({
     marginBottom: hp(2),
   },
   title: {
-    fontSize: wp(6),
+    fontSize: wp(5),
     fontWeight: '600',
     color: '#000000',
     fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif',
     fontStyle: 'italic',
+    flex: 1,
+    marginRight: wp(2),
   },
   refreshButton: {
-    padding: wp(2),
-    backgroundColor: '#E8F5E9',
-    borderRadius: wp(6),
-    width: wp(12),
-    height: wp(12),
+    width: wp(10),
+    height: wp(10),
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: wp(5),
   },
   periodSelector: {
     flexDirection: 'row',
     backgroundColor: '#E8F5E9',
     borderRadius: wp(3),
     padding: wp(1),
-    gap: wp(2),
   },
   periodButton: {
     flex: 1,
+    paddingVertical: hp(1),
+    alignItems: 'center',
+    borderRadius: wp(2),
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: hp(1.2),
-    borderRadius: wp(2),
   },
   periodButtonActive: {
     backgroundColor: '#2E7D32',
   },
   periodButtonText: {
-    fontSize: wp(4),
+    fontSize: wp(3.8),
     color: '#2E7D32',
     fontWeight: '500',
   },
@@ -282,13 +283,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   periodIcon: {
-    marginRight: wp(2),
+    marginRight: wp(1.5),
   },
   chartContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: wp(3),
     padding: wp(4),
-    marginBottom: hp(2),
+    marginBottom: hp(3),
+    alignItems: 'center',
     ...Platform.select({
       android: { elevation: 2 },
       ios: {
@@ -304,6 +306,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: hp(2),
+    width: '100%',
   },
   chartTitleContainer: {
     flexDirection: 'row',
@@ -319,10 +322,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000000',
   },
+  currentValue: {
+    fontSize: wp(5),
+    fontWeight: 'bold',
+  },
+  unit: {
+    fontSize: wp(3.5),
+    fontWeight: 'normal',
+  },
   chartBackground: {
     borderRadius: wp(3),
     padding: wp(3),
     marginBottom: hp(1),
+    alignItems: 'center',
+  },
+  chart: {
+    borderRadius: wp(3),
   },
   loaderContainer: {
     height: hp(30),
@@ -337,7 +352,7 @@ const styles = StyleSheet.create({
     fontSize: wp(4),
   },
   noDataContainer: {
-    height: hp(25),
+    height: CHART_HEIGHT,
     borderRadius: wp(3),
     justifyContent: 'center',
     alignItems: 'center',
@@ -356,4 +371,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GreenEnergyCharts; 
+export default GreenEnergyCharts;

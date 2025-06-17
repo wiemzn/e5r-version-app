@@ -70,7 +70,8 @@ const GreenEnergyPage = () => {
   }, [showCharts]);
 
   const dailyProduction = energyData.daily_production != null ? Number(energyData.daily_production) : 0.0;
-  const energyConsumption = energyData.energy_consumed != null ? Number(energyData.energy_consumed) : 0.0;
+  const energyConsumption = energyData.energy_consumption != null ? Number(energyData.energy_consumption) : 0.0;
+
   const storedEnergy = energyData.stored_energy != null ? Number(energyData.stored_energy) : 0.0;
 
   return (

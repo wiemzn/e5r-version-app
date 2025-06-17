@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   },
   chartsSection: {
     marginTop: hp(2),
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+
     borderRadius: wp(3),
     ...Platform.select({
       android: { elevation: 2 },

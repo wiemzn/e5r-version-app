@@ -12,7 +12,7 @@ import AppBackground from '../AppBackground';
 
 const { width, height } = Dimensions.get('window');
 
-const PlantDiseasePage = () => {
+ const PlantDiseasePage = () => {
   const navigation = useNavigation();
   const [imageUri, setImageUri] = useState(null);
   const [prediction, setPrediction] = useState(null);
@@ -151,13 +151,16 @@ const PlantDiseasePage = () => {
     });
     
     try {
-      const response = await axios.post('http://192.168.1.53:5000/predict', formData, {
+      const response = await axios.post('http://172.20.10.2:5000/predict', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
       const predictionData = response.data;
+      if (!predictionData || !predictionData.disease || typeof predictionData.confidence !== 'number') {
+        throw new Error('Invalid prediction data');
+      }
       setPrediction(predictionData);
       Toast.show({
         type: 'success',
@@ -166,7 +169,7 @@ const PlantDiseasePage = () => {
       });
     } catch (error) {
       console.error('Error submitting image:', error);
-      setPrediction({ disease: 'Error', confidence: 0 });
+      setPrediction({ disease: 'Error', confidence: 0, error: true });
       Toast.show({
         type: 'error',
         text1: 'Submission Failed',
@@ -175,6 +178,11 @@ const PlantDiseasePage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const resetImage = () => {
+    setImageUri(null);
+    setPrediction(null);
   };
 
   return (
@@ -229,27 +237,29 @@ const PlantDiseasePage = () => {
                 <View style={styles.imageActions}>
                   <TouchableOpacity 
                     style={styles.changeImageButton} 
-                    onPress={() => setImageUri(null)}
+                    onPress={resetImage}
                   >
                     <Icon name="close" size={wp(5)} color="#FFFFFF" />
                   </TouchableOpacity>
                 </View>
               </View>
               
-              <TouchableOpacity 
-                style={styles.submitButton} 
-                onPress={submitImage} 
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Icon name="search" size={wp(5)} color="#FFFFFF" style={{ marginRight: 10 }} />
-                    <Text style={styles.submitButtonText}>Analyze Image</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {!isLoading && !prediction && (
+                <TouchableOpacity 
+                  style={styles.submitButton} 
+                  onPress={submitImage}
+                >
+                  <Icon name="search" size={wp(5)} color="#FFFFFF" style={{ marginRight: 10 }} />
+                  <Text style={styles.submitButtonText}>Analyze Image</Text>
+                </TouchableOpacity>
+              )}
+
+              {isLoading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#FF9800" />
+                  <Text style={styles.loadingText}>Analyzing...</Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -257,30 +267,51 @@ const PlantDiseasePage = () => {
             <View style={styles.resultContainer}>
               <Text style={styles.resultTitle}>Analysis Results</Text>
               
-              <View style={styles.resultCard}>
-                <View style={styles.resultRow}>
-                  <Icon name="local-florist" size={wp(6)} color="#4CAF50" />
-                  <View style={styles.resultTextContainer}>
-                    <Text style={styles.resultLabel}>Disease Detected</Text>
-                    <Text style={styles.resultValue}>{prediction.disease}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.divider} />
-                
-                <View style={styles.resultRow}>
-                  <Icon name="assessment" size={wp(6)} color="#4CAF50" />
-                  <View style={styles.resultTextContainer}>
-                    <Text style={styles.resultLabel}>Confidence Level</Text>
-                    <Text style={styles.resultValue}>{(prediction.confidence * 100).toFixed(2)}%</Text>
-                  </View>
-                </View>
+              <View style={[styles.resultCard, prediction.error && styles.errorCard]}>
+                {prediction.error ? (
+                  <>
+                    <View style={styles.resultRow}>
+                      <Icon name="error" size={wp(6)} color="#D32F2F" />
+                      <View style={styles.resultTextContainer}>
+                        <Text style={styles.resultLabel}>Error</Text>
+                        <Text style={[styles.resultValue, styles.errorText]}>
+                          Failed to analyze the image
+                        </Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.retryButton} 
+                      onPress={resetImage}
+                    >
+                      <Text style={styles.retryButtonText}>Try Again</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.resultRow}>
+                      <Icon name="local-florist" size={wp(6)} color="#4CAF50" />
+                      <View style={styles.resultTextContainer}>
+                        <Text style={styles.resultLabel}>Disease Detected</Text>
+                        <Text style={styles.resultValue}>
+                          {prediction.disease || 'Unknown'}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.divider} />
+                    
+                    <View style={styles.resultRow}>
+                      <Icon name="assessment" size={wp(6)} color="#4CAF50" />
+                      <View style={styles.resultTextContainer}>
+                        <Text style={styles.resultLabel}>Confidence Level</Text>
+                        <Text style={styles.resultValue}>
+                          {(prediction.confidence * 100).toFixed(2)}%
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                )}
               </View>
-              
-              <TouchableOpacity style={styles.tipsButton}>
-                <Text style={styles.tipsButtonText}>View Treatment Tips</Text>
-                <Icon name="chevron-right" size={wp(5)} color="#FFFFFF" />
-              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -344,7 +375,7 @@ const styles = StyleSheet.create({
     marginBottom: hp(5),
   },
   iconContainer: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)', // Fond vert clair pour l'icône
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
     width: wp(20),
     height: wp(20),
     borderRadius: wp(10),
@@ -352,15 +383,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: hp(2),
   },
-  uploadIcon: {
-    // Supprimé ici car géré par iconContainer
-  },
   uploadText: {
-    fontSize: wp(5), // Taille augmentée
-    fontWeight: 'bold', // Texte en gras
-    color: '#424242', // Couleur plus sombre
+    fontSize: wp(5),
+    fontWeight: 'bold',
+    color: '#424242',
     textAlign: 'center',
-    lineHeight: hp(3.5), // Espacement ajusté
+    lineHeight: hp(3.5),
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -445,6 +473,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
+  loadingContainer: {
+    alignItems: 'center',
+    marginTop: hp(2),
+  },
+  loadingText: {
+    fontSize: wp(4),
+    color: '#424242',
+    marginTop: hp(1),
+  },
   resultContainer: {
     width: '100%',
     marginTop: hp(3),
@@ -467,6 +504,9 @@ const styles = StyleSheet.create({
     elevation: 3,
     marginBottom: hp(2),
   },
+  errorCard: {
+    backgroundColor: '#FFEBEE',
+  },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -485,30 +525,27 @@ const styles = StyleSheet.create({
     color: '#424242',
     marginTop: hp(0.5),
   },
+  errorText: {
+    color: '#D32F2F',
+  },
   divider: {
     height: 1,
     backgroundColor: '#E0E0E0',
     marginVertical: hp(1),
   },
-  tipsButton: {
-    flexDirection: 'row',
-    backgroundColor: '#4CAF50',
+  retryButton: {
+    backgroundColor: '#FF9800',
     paddingVertical: hp(1.5),
     paddingHorizontal: wp(5),
     borderRadius: wp(2),
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    marginTop: hp(2),
   },
-  tipsButtonText: {
+  retryButtonText: {
     fontSize: wp(4),
     color: '#FFFFFF',
     fontWeight: 'bold',
-    marginRight: wp(2),
   },
 });
 

@@ -14,30 +14,30 @@ import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-nat
 import GoogleSheetsService from '../../googlesheetservice';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 
-const { width } = Dimensions.get('window');
-const CHART_WIDTH = wp(90);
+const CHART_WIDTH = wp(72); // ✅ Responsive width (82% of screen)
+const CHART_HEIGHT = hp(30); // Already responsive height
 
 const SENSORS = [
-  { 
-    id: 'temperature', 
-    name: 'Temperature', 
-    unit: '°C', 
+  {
+    id: 'temperature',
+    name: 'Temperature',
+    unit: '°C',
     color: '#E53935',
     icon: 'thermostat',
     gradientColors: ['#FFEBEE', '#FFCDD2'],
   },
-  { 
-    id: 'humidity', 
-    name: 'Humidity', 
-    unit: '%', 
+  {
+    id: 'humidity',
+    name: 'Humidity',
+    unit: '%',
     color: '#1E88E5',
     icon: 'water-drop',
     gradientColors: ['#E3F2FD', '#BBDEFB'],
   },
-  { 
-    id: 'light', 
-    name: 'Light Intensity', 
-    unit: 'lux', 
+  {
+    id: 'light',
+    name: 'Light Intensity',
+    unit: 'lux',
     color: '#FFA000',
     icon: 'wb-sunny',
     gradientColors: ['#FFF8E1', '#FFE082'],
@@ -53,6 +53,7 @@ const EnvironmentCharts = () => {
     setIsLoading(true);
     try {
       const data = await GoogleSheetsService.fetchChartData();
+      console.log('Fetched chart data:', JSON.stringify(data));
       setChartData(data);
     } catch (error) {
       console.error('Error loading chart data:', error);
@@ -67,35 +68,31 @@ const EnvironmentCharts = () => {
 
   useEffect(() => {
     console.log('Range changed to:', selectedRange);
-    setChartData(prevData => ({...prevData}));
+    setChartData(prevData => ({ ...prevData }));
   }, [selectedRange]);
 
   const formatData = (sensorId) => {
     if (!chartData) {
-      return {
-        labels: [],
-        datasets: [{ data: [] }]
-      };
+      return { labels: [], datasets: [{ data: [] }] };
     }
 
     const filteredData = GoogleSheetsService.filterDataByRange(chartData, selectedRange);
     const sensorData = filteredData?.[sensorId] || [];
 
-    if (sensorData.length === 0) {
-      return {
-        labels: [],
-        datasets: [{ data: [] }]
-      };
-    }
-
     const labels = sensorData.map(point => point.originalTime);
-    const dataPoints = sensorData.map(point => point.y);
+    const dataPoints = sensorData.map(point => {
+      if (sensorId === 'light' && typeof point.y === 'string') {
+        return point.y.toLowerCase() === 'off' ? 0 : parseFloat(point.y) || 0;
+      }
+      return parseFloat(point.y) || 0;
+    });
 
     return {
       labels,
       datasets: [{
         data: dataPoints,
-        color: (opacity = 1) => `${SENSORS.find(s => s.id === sensorId).color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
+        color: (opacity = 1) =>
+          `${SENSORS.find(s => s.id === sensorId).color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
         strokeWidth: 2
       }]
     };
@@ -103,7 +100,7 @@ const EnvironmentCharts = () => {
 
   const renderChart = (sensor) => {
     const data = formatData(sensor.id);
-    
+
     return (
       <View key={sensor.id} style={styles.chartContainer}>
         <View style={styles.chartHeader}>
@@ -114,7 +111,7 @@ const EnvironmentCharts = () => {
             <Text style={styles.chartTitle}>{sensor.name}</Text>
           </View>
           <Text style={[styles.currentValue, { color: sensor.color }]}>
-            {sensorData?.[sensor.id]?.toString() || 'N/A'}{' '}
+            {chartData?.[sensor.id]?.[chartData[sensor.id].length - 1]?.y?.toString() || 'N/A'}{' '}
             <Text style={styles.unit}>{sensor.unit}</Text>
           </Text>
         </View>
@@ -123,15 +120,16 @@ const EnvironmentCharts = () => {
             <View style={[styles.chartBackground, { backgroundColor: sensor.gradientColors[0] }]}>
               <LineChart
                 data={data}
-                width={CHART_WIDTH}
-                height={hp(25)}
+                width={CHART_WIDTH} // ✅ Responsive width
+                height={CHART_HEIGHT}
                 chartConfig={{
-                  backgroundColor: 'transparent',
-                  backgroundGradientFrom: 'transparent',
-                  backgroundGradientTo: 'transparent',
+                  backgroundColor: '#FFFFFF',
+                  backgroundGradientFrom: sensor.gradientColors[0],
+                  backgroundGradientTo: sensor.gradientColors[1],
                   decimalPlaces: sensor.id === 'light' ? 0 : 1,
-                  color: (opacity = 1) => `${sensor.color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity * 0.5})`,
+                  color: (opacity = 1) =>
+                    `${sensor.color}${Math.round(opacity * 255).toString(16).padStart(2, '0')}`,
+                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity * 0.7})`,
                   style: {
                     borderRadius: wp(3),
                   },
@@ -145,9 +143,9 @@ const EnvironmentCharts = () => {
                     fontWeight: '500',
                   },
                   propsForBackgroundLines: {
-                    strokeDasharray: '',
+                    strokeDasharray: [5, 5],
                     stroke: `${sensor.color}20`,
-                  }
+                  },
                 }}
                 bezier
                 style={styles.chart}
@@ -155,7 +153,7 @@ const EnvironmentCharts = () => {
                 withHorizontalLabels={true}
                 withInnerLines={true}
                 withOuterLines={false}
-                fromZero={false}
+                fromZero={sensor.id === 'light'}
                 yAxisLabel=""
                 yAxisSuffix={sensor.unit}
               />
@@ -181,8 +179,8 @@ const EnvironmentCharts = () => {
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Environment Charts</Text>
-          <TouchableOpacity 
-            style={styles.refreshButton} 
+          <TouchableOpacity
+            style={styles.refreshButton}
             onPress={loadChartData}
             activeOpacity={0.7}
           >
@@ -195,10 +193,10 @@ const EnvironmentCharts = () => {
             onPress={() => setSelectedRange('day')}
             activeOpacity={0.7}
           >
-            <Icon 
-              name="today" 
-              size={wp(5)} 
-              color={selectedRange === 'day' ? '#FFFFFF' : '#2E7D32'} 
+            <Icon
+              name="today"
+              size={wp(5)}
+              color={selectedRange === 'day' ? '#FFFFFF' : '#2E7D32'}
               style={styles.periodIcon}
             />
             <Text style={[styles.periodButtonText, selectedRange === 'day' && styles.periodButtonTextActive]}>
@@ -210,10 +208,10 @@ const EnvironmentCharts = () => {
             onPress={() => setSelectedRange('week')}
             activeOpacity={0.7}
           >
-            <Icon 
-              name="date-range" 
-              size={wp(5)} 
-              color={selectedRange === 'week' ? '#FFFFFF' : '#2E7D32'} 
+            <Icon
+              name="date-range"
+              size={wp(5)}
+              color={selectedRange === 'week' ? '#FFFFFF' : '#2E7D32'}
               style={styles.periodIcon}
             />
             <Text style={[styles.periodButtonText, selectedRange === 'week' && styles.periodButtonTextActive]}>
@@ -241,6 +239,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: wp(4),
+    paddingBottom: hp(4),
   },
   header: {
     marginBottom: hp(3),
@@ -294,7 +293,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: wp(3),
     padding: wp(4),
-    marginBottom: hp(2),
+    marginBottom: hp(3),
+    alignItems: 'center', // ✅ centrer les éléments
     ...Platform.select({
       android: { elevation: 2 },
       ios: {
@@ -310,6 +310,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: hp(2),
+    width: '100%',
   },
   chartTitleContainer: {
     flexDirection: 'row',
@@ -337,6 +338,7 @@ const styles = StyleSheet.create({
     borderRadius: wp(3),
     padding: wp(3),
     marginBottom: hp(1),
+    alignItems: 'center', // ✅ centrer le chart
   },
   periodIcon: {
     marginRight: wp(2),
@@ -356,7 +358,7 @@ const styles = StyleSheet.create({
     fontSize: wp(4),
   },
   noDataContainer: {
-    height: hp(25),
+    height: CHART_HEIGHT,
     borderRadius: wp(3),
     justifyContent: 'center',
     alignItems: 'center',
@@ -375,4 +377,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default EnvironmentCharts; 
+export default EnvironmentCharts;
